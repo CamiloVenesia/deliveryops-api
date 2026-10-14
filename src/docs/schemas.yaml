@@ -33,24 +33,34 @@ components:
       properties:
         documentType:
           type: string
-          enum: [dni, licencia_conducir, comprobante_domicilio, otro]
+          enum:
+            - dni
+            - licencia_conducir
+            - comprobante_domicilio
+            - otro
           example: dni
+
         originalName:
           type: string
           example: dni.pdf
+
         generatedName:
           type: string
           example: "1725390000000-123456789.pdf"
+
         path:
           type: string
           example: uploads/users/documents/1725390000000-123456789.pdf
+
         mimetype:
           type: string
           example: application/pdf
+
         size:
           type: integer
           description: Tamaño del archivo en bytes
           example: 204800
+
         uploadedAt:
           type: string
           format: date-time
@@ -62,19 +72,24 @@ components:
         originalName:
           type: string
           example: comprobante.jpg
+
         generatedName:
           type: string
           example: "1725390000000-987654321.jpg"
+
         path:
           type: string
           example: uploads/orders/receipts/1725390000000-987654321.jpg
+
         mimetype:
           type: string
           example: image/jpeg
+
         size:
           type: integer
           description: Tamaño del archivo en bytes
           example: 102400
+
         uploadedAt:
           type: string
           format: date-time
@@ -85,26 +100,65 @@ components:
         _id:
           type: string
           example: 665f4d0a8f9a1b001234abcd
+
         firstName:
           type: string
           example: Ana
+
         lastName:
           type: string
           example: Perez
+
         email:
           type: string
+          format: email
           example: ana@mail.com
-        password:
-          type: string
-          example: "********"
+
         role:
           type: string
-          enum: [admin, customer, driver, store]
+          enum:
+            - admin
+            - customer
+            - driver
+            - store
           example: customer
+
         documents:
           type: array
           items:
             $ref: '#/components/schemas/DocumentMeta'
+
+        createdAt:
+          type: string
+          format: date-time
+
+        updatedAt:
+          type: string
+          format: date-time
+
+    PaginatedUsers:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+
+        page:
+          type: integer
+          example: 1
+
+        limit:
+          type: integer
+          example: 10
+
+        total:
+          type: integer
+          example: 25
+
+        totalPages:
+          type: integer
+          example: 3
 
     OrderItem:
       type: object
@@ -112,9 +166,11 @@ components:
         name:
           type: string
           example: Auriculares Bluetooth
+
         quantity:
           type: integer
           example: 2
+
         price:
           type: number
           example: 1500
@@ -125,33 +181,50 @@ components:
         _id:
           type: string
           example: 665f4d0a8f9a1b005678efgh
+
         customer:
           type: string
           description: ID del usuario que realizó el pedido
           example: 665f4d0a8f9a1b001234abcd
+
         items:
           type: array
           items:
             $ref: '#/components/schemas/OrderItem'
+
         deliveryAddress:
           type: string
           example: Av. Siempre Viva 742
+
         total:
           type: number
           example: 3000
+
         status:
           type: string
-          enum: [created, assigned, picked_up, in_transit, delivered, cancelled]
+          enum:
+            - created
+            - assigned
+            - picked_up
+            - in_transit
+            - delivered
+            - cancelled
           example: created
+
         priority:
           type: string
-          enum: [low, normal, high]
+          enum:
+            - low
+            - normal
+            - high
           example: normal
+
         delivery:
           type: string
           nullable: true
           description: ID de la entrega asociada, si existe
           example: null
+
         receipt:
           $ref: '#/components/schemas/ReceiptMeta'
 
@@ -161,30 +234,44 @@ components:
         _id:
           type: string
           example: 665f4d0a8f9a1b009876ijkl
+
         order:
           type: string
           description: ID del pedido asociado
           example: 665f4d0a8f9a1b005678efgh
+
         driver:
           type: string
           nullable: true
           description: ID del repartidor asignado
           example: 665f4d0a8f9a1b001234mnop
+
         status:
           type: string
-          enum: [pending, assigned, in_transit, delivered]
+          enum:
+            - pending
+            - assigned
+            - in_transit
+            - delivered
           example: assigned
+
         priority:
           type: string
-          enum: [low, normal, high]
+          enum:
+            - low
+            - normal
+            - high
           example: normal
+
         assignedAt:
           type: string
           format: date-time
           nullable: true
+
         deliveredAt:
           type: string
           format: date-time
           nullable: true
+
         receipt:
-          $ref: '#/components/schemas/ReceiptMeta'
+          $ref: '#/components/schemas/ReceiptMeta' 

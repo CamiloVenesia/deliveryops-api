@@ -1,5 +1,6 @@
 // tests/setup.js
 
+import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 
 import User from '../src/models/user.model.js';
@@ -7,16 +8,29 @@ import Order from '../src/models/order.model.js';
 import Delivery from '../src/models/delivery.model.js';
 import Product from '../src/models/product.model.js';
 
-import dotenv from 'dotenv';
-
 dotenv.config();
 
-const TEST_MONGO_URI =
-    process.env.MONGO_URL_TEST ||
+process.env.PORT ??= '3000';
+
+process.env.MONGO_URL ??=
     'mongodb://localhost:27017/deliveryops-test';
 
+process.env.MONGO_URL_TEST ??=
+    'mongodb://localhost:27017/deliveryops-test';
+
+process.env.BASIC_AUTH_USER ??=
+    'deliveryops-test';
+
+process.env.BASIC_AUTH_PASSWORD ??=
+    'deliveryops-test-password';
+
+const TEST_MONGO_URI =
+    process.env.MONGO_URL_TEST;
+
 before(async () => {
-    await mongoose.connect(TEST_MONGO_URI);
+    await mongoose.connect(
+        TEST_MONGO_URI
+    );
 });
 
 beforeEach(async () => {

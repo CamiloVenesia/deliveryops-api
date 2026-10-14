@@ -25,13 +25,15 @@ Actualmente la API permite:
 - Manejo centralizado de errores.
 - Logging estructurado.
 - Documentación interactiva con Swagger.
+- Hash seguro de contraseñas mediante bcrypt.
+- Exclusión de contraseñas de las respuestas públicas.
 - Testing funcional automatizado.
 - Ejecución local o mediante Docker.
 
 La suite actual cuenta con:
 
 ```text
-35 tests funcionales
+39 tests funcionales
 ```
 
 ---
@@ -48,6 +50,10 @@ La suite actual cuenta con:
 
 - MongoDB 7
 - Mongoose 8
+
+## Seguridad
+
+- bcrypt
 
 ## Testing
 
@@ -252,7 +258,7 @@ Creá un archivo `.env` tomando como referencia:
 .env.example
 ```
 
-Configuración local actual:
+Configuración local de ejemplo:
 
 ```env
 PORT=3000
@@ -267,9 +273,11 @@ BASIC_AUTH_USER=dev
 BASIC_AUTH_PASSWORD=deliveryops123
 ```
 
-La contraseña mostrada es únicamente para desarrollo local.
+Las credenciales incluidas en `.env.example` están pensadas únicamente para desarrollo local.
 
-No debe utilizarse como secreto en producción.
+En producción deben utilizarse secretos seguros y diferentes.
+
+El archivo `.env` no debe versionarse.
 
 ---
 
@@ -285,9 +293,19 @@ No debe utilizarse como secreto en producción.
 | `BASIC_AUTH_USER` | Usuario para Swagger y endpoints internos |
 | `BASIC_AUTH_PASSWORD` | Contraseña para Swagger y endpoints internos |
 
-Las variables críticas son verificadas al iniciar la aplicación.
+Las variables críticas son verificadas durante el inicio de la aplicación.
 
-Si falta alguna, el servidor no arranca.
+Actualmente son obligatorias:
+
+```text
+PORT
+MONGO_URL
+NODE_ENV
+BASIC_AUTH_USER
+BASIC_AUTH_PASSWORD
+```
+
+Si falta alguna, el servidor no inicia.
 
 Ejemplo:
 
@@ -295,6 +313,8 @@ Ejemplo:
 [FATAL] Faltan variables de entorno obligatorias: MONGO_URL
 Revisá tu archivo .env (podés basarte en .env.example)
 ```
+
+Las credenciales de Basic Auth no poseen valores por defecto hardcodeados dentro de la aplicación.
 
 ---
 
@@ -343,7 +363,7 @@ npm start
 
 # Docker
 
-DeliveryOps puede ejecutarse completamente mediante Docker Compose.
+DeliveryOps puede ejecutarse mediante Docker Compose.
 
 ## Validar configuración
 
@@ -425,7 +445,7 @@ Antes de cada test se limpian las colecciones correspondientes para mantener ais
 Estado actual:
 
 ```text
-35 passing
+39 passing
 ```
 
 ---
@@ -439,6 +459,11 @@ Los tests verifican:
 - Paginación.
 - Validaciones de datos.
 - Restricciones por roles existentes.
+- Hash de contraseñas con bcrypt.
+- Verificación de hashes mediante `bcrypt.compare`.
+- Exclusión de passwords en respuestas de usuarios.
+- Exclusión de passwords en mocks públicos.
+- Persistencia de passwords hasheadas en mocks.
 - Creación de pedidos.
 - Cálculo de totales.
 - Actualización de estados.
@@ -458,6 +483,71 @@ Los tests verifican:
 
 ---
 
+# Seguridad de contraseñas
+
+Las contraseñas de usuarios se procesan con `bcrypt` antes de persistirse en MongoDB.
+
+El flujo actual es:
+
+```text
+Password recibido
+      ↓
+bcrypt.hash()
+      ↓
+Hash
+      ↓
+MongoDB
+```
+
+La contraseña en texto plano no se almacena mediante los flujos públicos de creación de usuarios.
+
+El modelo de usuario utiliza:
+
+```text
+select: false
+```
+
+para evitar que el campo `password` sea recuperado automáticamente en consultas normales.
+
+Además, las transformaciones de:
+
+```text
+toJSON
+toObject
+```
+
+eliminan el campo `password` como capa adicional de protección antes de serializar usuarios.
+
+Cuando un flujo interno necesita acceder explícitamente al hash, debe utilizar:
+
+```js
+.select('+password')
+```
+
+Esto será necesario posteriormente para implementar el proceso de login.
+
+---
+
+# Mocks y seguridad
+
+Los usuarios generados mediante mocks utilizan passwords aleatorias para construir los datos internos.
+
+Antes de persistir usuarios simulados:
+
+```text
+Password generado
+      ↓
+bcrypt.hash()
+      ↓
+MongoDB
+```
+
+El endpoint público de generación de usuarios simulados elimina el campo `password` antes de devolver la respuesta.
+
+Los tests verifican tanto la ausencia de passwords en respuestas como la existencia de hashes válidos dentro de MongoDB.
+
+---
+
 # Documentación Swagger
 
 Con la aplicación funcionando:
@@ -468,12 +558,31 @@ http://localhost:3000/api/docs
 
 Swagger está protegido mediante Basic Auth.
 
-Las credenciales se obtienen de:
+Las credenciales se obtienen exclusivamente de:
 
 ```text
 BASIC_AUTH_USER
 BASIC_AUTH_PASSWORD
 ```
+
+No existen credenciales de Basic Auth por defecto dentro del código de producción.
+
+---
+
+## Passwords en Swagger
+
+El password solamente aparece como campo de entrada para la creación de usuarios.
+
+Está declarado como:
+
+```yaml
+format: password
+writeOnly: true
+```
+
+El schema público `User` no contiene el campo `password`.
+
+De esta manera Swagger refleja correctamente que las contraseñas nunca forman parte de las respuestas públicas de la API.
 
 ---
 
@@ -719,15 +828,40 @@ documentType
 
 Actualmente DeliveryOps cuenta con:
 
+- Hash seguro de contraseñas mediante bcrypt.
+- Contraseñas excluidas por defecto de las consultas de usuarios.
+- Contraseñas eliminadas durante serialización JSON.
+- Passwords de mocks hasheadas antes de persistirse.
+- Passwords excluidas de respuestas de mocks.
+- Tests específicos de seguridad de contraseñas.
 - Validación de variables de entorno.
+- Basic Auth sin credenciales hardcodeadas por defecto.
 - Manejo centralizado de errores.
 - Ejecución Docker mediante usuario no-root.
 - Basic Auth para Swagger.
 - Protección de endpoints internos en producción.
-- Separación entre base de desarrollo y testing.
-- Restricciones básicas de tipos y tamaño de archivos.
+- Separación entre bases de desarrollo y testing.
+- Restricciones de tipos y tamaño de archivos.
 
-La siguiente etapa del proyecto incorporará una capa completa de seguridad de aplicación.
+---
+
+# Limitaciones de seguridad actuales
+
+DeliveryOps todavía no cuenta con:
+
+- Login de usuarios.
+- JWT.
+- Refresh Tokens.
+- Autorización completa basada en roles.
+- Validación mediante schemas especializados.
+- Helmet.
+- Rate limiting general.
+- Política CORS configurable.
+- Autenticación de MongoDB en Docker.
+- Gestión de sesiones.
+- Revocación de tokens.
+
+Estas mejoras forman parte de las próximas etapas.
 
 ---
 
@@ -735,8 +869,16 @@ La siguiente etapa del proyecto incorporará una capa completa de seguridad de a
 
 ## Fase 1 — Seguridad y autenticación
 
+### Completado
+
 - Hash de contraseñas con bcrypt.
 - Eliminación de passwords de las respuestas.
+- Protección del schema público de usuarios.
+- Passwords seguras en datos mock.
+- Eliminación de credenciales Basic Auth hardcodeadas.
+
+### Próximo
+
 - Login.
 - JWT Access Token.
 - Refresh Tokens.
@@ -745,7 +887,7 @@ La siguiente etapa del proyecto incorporará una capa completa de seguridad de a
 - Helmet.
 - CORS configurable.
 - Rate limiting.
-- Protección de secretos.
+- Protección avanzada de secretos.
 - Autenticación de MongoDB en Docker.
 
 ---
@@ -836,8 +978,7 @@ La plataforma estará orientada principalmente a operaciones de última milla, c
 
 Entre las mejoras prioritarias se encuentran:
 
-- Migrar Products a la arquitectura completa.
-- Incorporar hashing seguro de passwords.
+- Implementar login.
 - Implementar autenticación JWT.
 - Incorporar Refresh Tokens.
 - Implementar permisos basados en roles.
@@ -845,9 +986,10 @@ Entre las mejoras prioritarias se encuentran:
 - Incorporar middleware de seguridad.
 - Mejorar la estrategia de rate limiting.
 - Implementar autenticación de MongoDB.
+- Migrar Products a la arquitectura completa.
 - Mejorar almacenamiento de archivos.
 - Incrementar cobertura de tests.
-- Incorporar testing específico de seguridad.
+- Incorporar testing específico de autenticación y autorización.
 
 ---
 
@@ -877,6 +1019,8 @@ Los services concentran reglas de negocio.
 
 Las respuestas de error deben mantener el formato estándar definido por el proyecto.
 
+Las contraseñas nunca deben formar parte de las respuestas públicas.
+
 ---
 
 # Archivos ignorados
@@ -899,13 +1043,15 @@ Los archivos sensibles y generados durante la ejecución permanecen fuera de Git
 
 DeliveryOps se encuentra actualmente en desarrollo activo.
 
-La base funcional inicial está estable y cuenta con:
+La base funcional cuenta con:
 
 ```text
-35 tests pasando
+39 tests pasando
 ```
 
-La próxima etapa corresponde a la implementación de seguridad y autenticación.
+El almacenamiento seguro de contraseñas ya está implementado.
+
+La próxima etapa corresponde a la construcción del sistema de autenticación.
 
 ---
 

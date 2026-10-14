@@ -1,18 +1,39 @@
 paths:
   /api/users:
     get:
-      summary: Obtener todos los usuarios
+      summary: Obtener usuarios
+      description: Obtiene una lista paginada de usuarios. Las contraseñas nunca se incluyen en las respuestas.
       tags:
         - Users
+
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: Número de página
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+
+        - name: limit
+          in: query
+          required: false
+          description: Cantidad máxima de usuarios por página. El límite máximo permitido es 50.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+
       responses:
         "200":
-          description: Lista de usuarios obtenida correctamente
+          description: Lista paginada de usuarios obtenida correctamente
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/PaginatedUsers'
+
         "500":
           description: Error interno del servidor
           content:
@@ -22,36 +43,52 @@ paths:
 
     post:
       summary: Crear un nuevo usuario
+      description: Crea un usuario y almacena su contraseña mediante hash seguro con bcrypt. La contraseña nunca se devuelve en la respuesta.
       tags:
         - Users
+
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+
               required:
                 - firstName
                 - lastName
                 - email
                 - password
+
               properties:
                 firstName:
                   type: string
                   example: Ruti
+
                 lastName:
                   type: string
                   example: Esposito
+
                 email:
                   type: string
+                  format: email
                   example: ruti@mail.com
+
                 password:
                   type: string
-                  example: "12345678"
+                  format: password
+                  writeOnly: true
+                  example: "PasswordSeguro123"
+
                 role:
                   type: string
-                  enum: [admin, customer, driver, store]
+                  enum:
+                    - customer
+                    - driver
+                    - store
+                  default: customer
                   example: customer
+
       responses:
         "201":
           description: Usuario creado correctamente
@@ -59,18 +96,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
+
         "400":
           description: Faltan datos obligatorios o el usuario ya existe
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
         "403":
-          description: No se permite crear usuarios con rol admin
+          description: No se permite crear usuarios con rol admin mediante este endpoint
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
         "500":
           description: Error interno del servidor
           content:
@@ -81,8 +121,10 @@ paths:
   /api/users/{uid}:
     get:
       summary: Obtener un usuario por ID
+      description: Devuelve los datos públicos del usuario. La contraseña nunca se incluye.
       tags:
         - Users
+
       parameters:
         - name: uid
           in: path
@@ -90,6 +132,7 @@ paths:
           description: ID del usuario
           schema:
             type: string
+
       responses:
         "200":
           description: Usuario obtenido correctamente
@@ -97,12 +140,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
+
         "404":
           description: Usuario no encontrado
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
         "500":
           description: Error interno del servidor
           content:
@@ -114,6 +159,7 @@ paths:
       summary: Eliminar un usuario por ID
       tags:
         - Users
+
       parameters:
         - name: uid
           in: path
@@ -121,6 +167,7 @@ paths:
           description: ID del usuario
           schema:
             type: string
+
       responses:
         "200":
           description: Usuario eliminado correctamente
@@ -128,12 +175,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
+
         "404":
           description: Usuario no encontrado
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
         "500":
           description: Error interno del servidor
           content:
