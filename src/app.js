@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import swaggerUi from 'swagger-ui-express';
 
@@ -15,6 +16,11 @@ import healthRouter from './routes/health.routes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { basicAuth } from './middleware/basicAuth.js';
 
+import {
+    apiRateLimiter,
+    authRateLimiter
+} from './middleware/rateLimiters.js';
+
 import { customError } from './utils/customError.js';
 import { ERROR_CODES } from './constants/error.constants.js';
 
@@ -23,17 +29,78 @@ import { config } from './config/env.js';
 
 const app = express();
 
-app.use(cors());
+if (
+    config.nodeEnv ===
+    'production'
+) {
+    app.set(
+        'trust proxy',
+        1
+    );
+}
 
-app.use(express.json());
+app.disable('x-powered-by');
 
 app.use(
-    express.urlencoded({
-        extended: true
+    helmet()
+);
+
+app.use(
+    cors({
+        origin(
+            origin,
+            callback
+        ) {
+            if (!origin) {
+                return callback(
+                    null,
+                    true
+                );
+            }
+
+            if (
+                config.corsOrigins
+                    .includes(
+                        origin
+                    )
+            ) {
+                return callback(
+                    null,
+                    true
+                );
+            }
+
+            return callback(
+                new Error(
+                    'Origen no permitido por CORS'
+                )
+            );
+        },
+
+        credentials: true
     })
 );
 
-app.use(cookieParser());
+app.use(
+    express.json({
+        limit: '1mb'
+    })
+);
+
+app.use(
+    express.urlencoded({
+        extended: true,
+        limit: '1mb'
+    })
+);
+
+app.use(
+    cookieParser()
+);
+
+app.use(
+    apiRateLimiter
+);
 
 app.use(
     '/api/health',
@@ -41,13 +108,17 @@ app.use(
 );
 
 const isProd =
-    config.nodeEnv === 'production';
+    config.nodeEnv ===
+    'production';
 
 const internalGuard =
     isProd
         ? basicAuth
-        : (req, res, next) =>
-              next();
+        : (
+            req,
+            res,
+            next
+        ) => next();
 
 app.use(
     '/api/docs',
@@ -60,6 +131,7 @@ app.use(
 
 app.use(
     '/api/auth',
+    authRateLimiter,
     authRouter
 );
 
@@ -96,7 +168,11 @@ app.use(
 );
 
 app.use(
-    (req, res, next) => {
+    (
+        req,
+        res,
+        next
+    ) => {
         next(
             new customError(
                 ERROR_CODES.ROUTE_NOT_FOUND,

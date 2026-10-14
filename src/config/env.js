@@ -16,9 +16,11 @@ const REQUIRED_VARS = [
     'JWT_REFRESH_EXPIRES_IN'
 ];
 
-const missing = REQUIRED_VARS.filter(
-    (key) => !process.env[key]
-);
+const missing =
+    REQUIRED_VARS.filter(
+        (key) =>
+            !process.env[key]
+    );
 
 if (missing.length > 0) {
     console.error(
@@ -54,7 +56,8 @@ export const config = {
         process.env.NODE_ENV,
 
     logLevel:
-        process.env.LOG_LEVEL || 'info',
+        process.env.LOG_LEVEL ||
+        'info',
 
     basicAuthUser:
         process.env.BASIC_AUTH_USER,
@@ -72,5 +75,38 @@ export const config = {
         process.env.JWT_ACCESS_EXPIRES_IN,
 
     jwtRefreshExpiresIn:
-        process.env.JWT_REFRESH_EXPIRES_IN
+        process.env.JWT_REFRESH_EXPIRES_IN,
+
+    corsOrigins:
+        (
+            process.env.CORS_ORIGINS ||
+            'http://localhost:5173'
+        )
+            .split(',')
+            .map(
+                (origin) =>
+                    origin.trim()
+            )
+            .filter(Boolean),
+
+    rateLimitWindowMs:
+        Number(
+            process.env
+                .RATE_LIMIT_WINDOW_MS ||
+            900000
+        ),
+
+    rateLimitMax:
+        Number(
+            process.env
+                .RATE_LIMIT_MAX ||
+            300
+        ),
+
+    authRateLimitMax:
+        Number(
+            process.env
+                .AUTH_RATE_LIMIT_MAX ||
+            30
+        )
 };

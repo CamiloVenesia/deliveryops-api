@@ -17,6 +17,16 @@ import {
     authorizeSelfOrRoles
 } from '../middleware/authorizeRoles.js';
 
+import {
+    validateBody,
+    validateParams
+} from '../middleware/validate.js';
+
+import {
+    createUserSchema,
+    userIdParamsSchema
+} from '../validators/user.schemas.js';
+
 const router = Router();
 
 const documentUploader =
@@ -36,7 +46,12 @@ router.get(
 router.get(
     '/:uid',
     authenticate,
-    authorizeSelfOrRoles('admin'),
+    validateParams(
+        userIdParamsSchema
+    ),
+    authorizeSelfOrRoles(
+        'admin'
+    ),
     asyncHandler(
         userController.getById
     )
@@ -44,6 +59,9 @@ router.get(
 
 router.post(
     '/',
+    validateBody(
+        createUserSchema
+    ),
     asyncHandler(
         userController.create
     )
@@ -52,6 +70,9 @@ router.post(
 router.delete(
     '/:uid',
     authenticate,
+    validateParams(
+        userIdParamsSchema
+    ),
     authorizeRoles('admin'),
     asyncHandler(
         userController.remove
@@ -61,7 +82,12 @@ router.delete(
 router.post(
     '/:uid/documents',
     authenticate,
-    authorizeSelfOrRoles('admin'),
+    validateParams(
+        userIdParamsSchema
+    ),
+    authorizeSelfOrRoles(
+        'admin'
+    ),
     handleUpload(
         documentUploader.single(
             'document'

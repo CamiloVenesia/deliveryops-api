@@ -14,8 +14,18 @@ import { authenticate } from '../middleware/authenticate.js';
 
 import { authorizeRoles } from '../middleware/authorizeRoles.js';
 
-const router =
-    Router();
+import {
+    validateBody,
+    validateParams
+} from '../middleware/validate.js';
+
+import {
+    createDeliverySchema,
+    updateDeliveryStatusSchema,
+    deliveryIdParamsSchema
+} from '../validators/delivery.schemas.js';
+
+const router = Router();
 
 const receiptUploader =
     createUploader(
@@ -43,6 +53,9 @@ router.get(
         'customer',
         'driver'
     ),
+    validateParams(
+        deliveryIdParamsSchema
+    ),
     asyncHandler(
         deliveryController.getById
     )
@@ -53,6 +66,9 @@ router.post(
     authenticate,
     authorizeRoles(
         'admin'
+    ),
+    validateBody(
+        createDeliverySchema
     ),
     asyncHandler(
         deliveryController.create
@@ -66,6 +82,12 @@ router.patch(
         'admin',
         'driver'
     ),
+    validateParams(
+        deliveryIdParamsSchema
+    ),
+    validateBody(
+        updateDeliveryStatusSchema
+    ),
     asyncHandler(
         deliveryController.updateStatus
     )
@@ -76,6 +98,9 @@ router.delete(
     authenticate,
     authorizeRoles(
         'admin'
+    ),
+    validateParams(
+        deliveryIdParamsSchema
     ),
     asyncHandler(
         deliveryController.remove
@@ -88,6 +113,9 @@ router.post(
     authorizeRoles(
         'admin',
         'driver'
+    ),
+    validateParams(
+        deliveryIdParamsSchema
     ),
     handleUpload(
         receiptUploader.single(

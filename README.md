@@ -6,9 +6,9 @@ DeliveryOps es una API REST desarrollada con Node.js, Express y MongoDB para ges
 
 ---
 
-## Estado actual
+# Estado actual
 
-Actualmente incluye:
+Actualmente DeliveryOps incluye:
 
 - Gestión de usuarios.
 - Gestión de pedidos.
@@ -31,6 +31,11 @@ Actualmente incluye:
 - Logout y revocación de sesiones.
 - RBAC.
 - Control de ownership.
+- Validación de requests con Zod.
+- Helmet.
+- CORS configurable.
+- Rate limiting.
+- Límites de payload.
 - Tests automatizados.
 
 Estado actual:
@@ -59,10 +64,10 @@ Estado actual:
 - bcrypt
 - JSON Web Tokens
 - HttpOnly Cookies
-- Access Tokens
-- Refresh Tokens
-- Refresh Token Rotation
-- Sesiones revocables
+- Zod
+- Helmet
+- express-rate-limit
+- CORS configurable
 - RBAC
 
 ## Testing
@@ -96,10 +101,12 @@ Estado actual:
 
 # Arquitectura
 
-DeliveryOps utiliza la arquitectura:
+DeliveryOps utiliza:
 
 ```text
 Router
+  ↓
+Middleware
   ↓
 Controller
   ↓
@@ -113,6 +120,9 @@ Model
 Esto permite separar:
 
 - rutas;
+- autenticación;
+- autorización;
+- validación;
 - controladores;
 - reglas de negocio;
 - acceso a datos;
@@ -134,6 +144,7 @@ src/
 ├── routes/
 ├── services/
 ├── utils/
+├── validators/
 ├── app.js
 └── server.js
 ```
@@ -199,6 +210,12 @@ JWT_REFRESH_SECRET=change-this-refresh-secret
 
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
+
+CORS_ORIGINS=http://localhost:5173
+
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX=300
+AUTH_RATE_LIMIT_MAX=30
 ```
 
 Los secretos reales no deben almacenarse en Git.
@@ -229,7 +246,7 @@ Estado actual:
 
 # Docker
 
-Validar configuración:
+Validar:
 
 ```bash
 docker compose config
@@ -309,7 +326,7 @@ Duración:
 7 días
 ```
 
-Se guarda en:
+Se almacena en:
 
 ```text
 deliveryops_refresh
@@ -321,7 +338,7 @@ como cookie:
 HttpOnly
 ```
 
-El Refresh Token nunca se devuelve en el body de la respuesta.
+El Refresh Token nunca se devuelve en el body.
 
 ---
 
@@ -352,8 +369,6 @@ SHA-256(refreshToken)
 
 # Refresh Token Rotation
 
-Cada refresh:
-
 ```text
 Refresh Token A
        ↓
@@ -364,47 +379,13 @@ Token A revocado
 Refresh Token B
 ```
 
-Si se reutiliza un token ya rotado:
+Si se reutiliza un token revocado:
 
 ```text
 REFRESH_TOKEN_REUSED
 ```
 
-las sesiones activas del usuario son revocadas.
-
----
-
-# Endpoints de autenticación
-
-## Login
-
-```http
-POST /api/auth/login
-```
-
-## Refresh
-
-```http
-POST /api/auth/refresh
-```
-
-## Logout
-
-```http
-POST /api/auth/logout
-```
-
-## Usuario autenticado
-
-```http
-GET /api/auth/me
-```
-
-Requiere:
-
-```http
-Authorization: Bearer ACCESS_TOKEN
-```
+las sesiones activas asociadas son revocadas.
 
 ---
 
@@ -416,7 +397,7 @@ DeliveryOps implementa:
 Role-Based Access Control
 ```
 
-El sistema distingue actualmente:
+Roles:
 
 ```text
 admin
@@ -425,32 +406,29 @@ driver
 store
 ```
 
-`store` está definido en el modelo y queda reservado para la siguiente expansión funcional.
+`store` está preparado para una expansión funcional posterior.
 
 ---
 
-# Permisos actuales
+# Permisos
 
 ## Admin
 
 Puede:
 
 - listar usuarios;
-- consultar cualquier usuario;
+- consultar usuarios;
 - eliminar usuarios;
-- cargar documentos de cualquier usuario;
-- consultar todos los pedidos;
-- crear pedidos para clientes;
-- consultar cualquier pedido;
-- cambiar estados de pedidos;
+- gestionar documentos;
+- consultar pedidos;
+- crear pedidos;
+- modificar pedidos;
 - eliminar pedidos;
-- cargar comprobantes de pedidos;
-- consultar todas las entregas;
+- consultar entregas;
 - crear entregas;
-- consultar cualquier entrega;
-- cambiar estados de entregas;
+- modificar entregas;
 - eliminar entregas;
-- cargar comprobantes de entregas.
+- cargar comprobantes.
 
 ---
 
@@ -459,23 +437,12 @@ Puede:
 Puede:
 
 - registrarse;
-- consultar su propio perfil;
-- cargar documentos en su propio perfil;
+- consultar su perfil;
+- cargar sus documentos;
 - crear pedidos para sí mismo;
-- listar únicamente sus pedidos;
-- consultar únicamente sus pedidos;
-- cargar comprobantes únicamente en sus pedidos;
-- consultar entregas correspondientes a sus pedidos.
-
-No puede:
-
-- listar usuarios;
-- consultar perfiles ajenos;
-- crear pedidos para otra persona;
-- cambiar estados administrativos;
-- eliminar pedidos;
-- crear entregas;
-- eliminar entregas.
+- consultar sus pedidos;
+- cargar comprobantes en sus pedidos;
+- consultar entregas asociadas a sus pedidos.
 
 ---
 
@@ -483,53 +450,198 @@ No puede:
 
 Puede:
 
-- consultar entregas asignadas a él;
-- consultar una entrega si está asignada a él;
-- actualizar el estado de sus propias entregas;
-- cargar comprobantes de sus propias entregas.
+- consultar sus entregas;
+- actualizar sus entregas;
+- cargar comprobantes de sus entregas.
 
-No puede:
-
-- acceder a entregas de otros drivers;
-- crear entregas;
-- eliminar entregas;
-- modificar pedidos administrativos.
+No puede acceder a entregas asignadas a otros drivers.
 
 ---
 
 # Ownership
 
-Además del rol, DeliveryOps verifica la propiedad del recurso.
+DeliveryOps también verifica propiedad del recurso.
 
 Ejemplo:
 
 ```text
 Customer A
-   ↓
+    ↓
 Pedido A
 ```
 
-Customer A puede acceder a Pedido A.
+Customer A puede acceder.
 
 Pero:
 
 ```text
 Customer B
-   ↓
+    ↓
 Pedido A
-   ↓
+    ↓
 403 FORBIDDEN
 ```
 
-Lo mismo ocurre con los drivers:
+El mismo principio se aplica a drivers y entregas.
+
+---
+
+# Validación de requests
+
+DeliveryOps utiliza:
 
 ```text
-Driver A
-   ↓
-Entrega A
+Zod
 ```
 
-Otro driver no puede consultar ni modificar esa entrega.
+Las validaciones se ejecutan antes de llegar al controller.
+
+Flujo:
+
+```text
+Request
+   ↓
+Zod Schema
+   ↓
+Middleware validate
+   ↓
+Controller
+```
+
+Actualmente se validan:
+
+- login;
+- creación de usuarios;
+- emails;
+- passwords;
+- roles;
+- IDs MongoDB;
+- creación de pedidos;
+- items;
+- cantidades;
+- precios;
+- direcciones;
+- prioridades;
+- estados de pedidos;
+- creación de entregas;
+- estados de entregas.
+
+Los errores utilizan el formato estándar:
+
+```json
+{
+  "status": "error",
+  "error": "VALIDATION_ERROR",
+  "message": "Descripción del error"
+}
+```
+
+---
+
+# Helmet
+
+DeliveryOps utiliza Helmet para agregar headers HTTP de seguridad.
+
+Ejemplos:
+
+```text
+X-Content-Type-Options
+Cross-Origin-Resource-Policy
+Content-Security-Policy
+Strict-Transport-Security
+```
+
+Express también tiene deshabilitado:
+
+```text
+X-Powered-By
+```
+
+---
+
+# CORS
+
+Los orígenes permitidos se controlan mediante:
+
+```env
+CORS_ORIGINS=http://localhost:5173
+```
+
+Se pueden configurar múltiples orígenes separados por coma.
+
+Ejemplo:
+
+```env
+CORS_ORIGINS=http://localhost:5173,https://app.deliveryops.com
+```
+
+La API utiliza:
+
+```text
+credentials: true
+```
+
+para permitir cookies HttpOnly desde el frontend autorizado.
+
+---
+
+# Rate limiting
+
+DeliveryOps protege la API contra abuso mediante:
+
+```text
+express-rate-limit
+```
+
+Configuración general:
+
+```env
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX=300
+```
+
+Autenticación:
+
+```env
+AUTH_RATE_LIMIT_MAX=30
+```
+
+Las rutas de autenticación tienen un límite más estricto.
+
+Respuesta:
+
+```json
+{
+  "status": "error",
+  "error": "TOO_MANY_REQUESTS",
+  "message": "Demasiadas solicitudes. Intentá nuevamente más tarde."
+}
+```
+
+Durante testing se utiliza un límite elevado para evitar interferencias con la suite automatizada.
+
+---
+
+# Payload limits
+
+Los requests JSON y URL encoded tienen actualmente un límite de:
+
+```text
+1 MB
+```
+
+Esto reduce el riesgo de requests excesivamente grandes.
+
+---
+
+# Endpoints Auth
+
+```http
+POST /api/auth/login
+POST /api/auth/refresh
+POST /api/auth/logout
+GET  /api/auth/me
+```
 
 ---
 
@@ -596,37 +708,13 @@ PUT    /api/products/:pid
 DELETE /api/products/:pid
 ```
 
-Actualmente Products todavía utiliza:
+Products todavía utiliza:
 
 ```text
 Router → Service → Model
 ```
 
-Pendiente de normalización a:
-
-```text
-Router → Controller → Service → Repository → Model
-```
-
----
-
-# Uploads
-
-Formatos permitidos:
-
-```text
-JPG
-PNG
-PDF
-```
-
-Tamaño máximo:
-
-```text
-5 MB
-```
-
-Los uploads protegidos utilizan JWT y permisos RBAC.
+Pendiente de normalización.
 
 ---
 
@@ -646,94 +734,55 @@ Los endpoints JWT utilizan:
 BearerAuth
 ```
 
-La documentación refleja actualmente los permisos RBAC de:
-
-- Users
-- Orders
-- Deliveries
-- Uploads
-- Auth
-
----
-
-# Manejo de errores
-
-Formato estándar:
-
-```json
-{
-  "status": "error",
-  "error": "ERROR_CODE",
-  "message": "Descripción del error"
-}
-```
-
-Ejemplos:
-
-```text
-UNAUTHORIZED
-FORBIDDEN
-INVALID_CREDENTIALS
-INVALID_ACCESS_TOKEN
-INVALID_REFRESH_TOKEN
-REFRESH_TOKEN_REUSED
-USER_NOT_FOUND
-ORDER_NOT_FOUND
-DELIVERY_NOT_FOUND
-```
-
 ---
 
 # Seguridad implementada
 
 Actualmente DeliveryOps cuenta con:
 
-- bcrypt.
-- Passwords excluidas de respuestas.
-- `select: false` para password.
-- JWT Access Tokens.
-- Refresh Tokens.
-- HttpOnly Cookies.
-- Refresh Token Rotation.
-- Detección de reutilización.
-- Sesiones revocables.
-- Hash de Refresh Tokens.
-- `jti` único.
-- Secrets independientes para Access y Refresh.
-- Middleware de autenticación.
-- RBAC.
-- Ownership de recursos.
-- Basic Auth para Swagger.
-- Manejo centralizado de errores.
-- Docker con usuario no-root.
-- Tests de seguridad y permisos.
+- bcrypt;
+- passwords ocultas;
+- JWT;
+- Access Tokens;
+- Refresh Tokens;
+- HttpOnly Cookies;
+- Refresh Token Rotation;
+- detección de reutilización;
+- sesiones revocables;
+- hash de Refresh Tokens;
+- RBAC;
+- ownership;
+- Zod;
+- Helmet;
+- CORS configurable;
+- rate limiting;
+- límite de payload;
+- Basic Auth para Swagger;
+- Docker non-root;
+- manejo centralizado de errores.
 
 ---
 
-# Tests
+# Testing
 
-La suite verifica, entre otras cosas:
+La suite actual verifica:
 
-- hashing de passwords;
-- ocultamiento de passwords;
-- login;
-- credenciales incorrectas;
-- Access Tokens;
-- Refresh Tokens;
-- Refresh Token Rotation;
-- reutilización de Refresh Tokens;
+- usuarios;
+- hashing;
+- autenticación;
+- refresh;
 - logout;
-- autenticación obligatoria;
 - RBAC;
-- ownership de usuarios;
-- ownership de pedidos;
-- ownership de entregas;
-- permisos de admin;
-- permisos de customer;
-- permisos de driver;
-- uploads protegidos.
+- ownership;
+- pedidos;
+- entregas;
+- uploads;
+- mocks;
+- logging;
+- Swagger;
+- rutas inexistentes.
 
-Estado actual:
+Estado:
 
 ```text
 70 passing
@@ -743,100 +792,86 @@ Estado actual:
 
 # Roadmap
 
-## Fase 1 — Seguridad
+## Fase 1 — Backend base y seguridad
 
 ### Completado
 
+- Arquitectura backend.
+- MongoDB.
+- Users.
+- Orders.
+- Deliveries.
+- Uploads.
+- Logging.
+- Swagger.
+- Docker.
 - bcrypt.
-- Passwords seguras.
-- Login.
 - JWT.
-- Access Token.
-- Refresh Token.
-- Cookies HttpOnly.
-- Persistencia de sesiones.
-- Refresh Token Rotation.
-- Detección de reutilización.
-- Logout.
-- Middleware de autenticación.
+- Refresh Tokens.
+- Sesiones.
 - RBAC.
 - Ownership.
-- Tests de permisos.
-
-### Próximo
-
-- Validación de requests con schemas.
+- Zod.
 - Helmet.
-- CORS configurable.
+- CORS.
 - Rate limiting.
-- Política de contraseñas.
-- Seguridad de MongoDB.
 
 ---
 
-## Fase 2 — Operaciones logísticas
+# Fase 2 — Frontend
+
+## Próximo bloque
+
+```text
+DeliveryOps Web
+React + Vite
+```
+
+Se desarrollará:
+
+- login;
+- layout principal;
+- sidebar;
+- dashboard;
+- navegación;
+- usuarios;
+- pedidos;
+- entregas;
+- estados;
+- perfil;
+- logout;
+- integración con JWT;
+- refresh automático;
+- diseño responsive.
+
+---
+
+# Fase 3 — Operaciones logísticas avanzadas
 
 - Máquina de estados.
 - Historial de estados.
-- Asignación avanzada de repartidores.
+- Asignación avanzada.
 - Tracking.
 - Costos.
-- Filtros.
 - Reportes.
 - Proof of Delivery.
 - Notificaciones.
 - Email.
-- Integración futura con WhatsApp.
+- WhatsApp.
+- Mapas.
 
 ---
 
-## Fase 3 — Frontend
-
-- Dashboard React.
-- Panel administrativo.
-- Panel de cliente.
-- Panel de repartidor.
-- Gestión de pedidos.
-- Gestión de entregas.
-- Tracking público.
-- Métricas.
-
----
-
-## Fase 4 — Producción
+# Fase 4 — Producción
 
 - CI/CD.
 - Deploy.
-- Versionado de API.
+- Versionado.
 - Seeds.
 - Postman.
 - Monitoring.
 - Gestión de secretos.
-- Más cobertura de tests.
-
----
-
-# Flujo general
-
-```text
-Cliente
-   ↓
-Pedido
-   ↓
-Preparación
-   ↓
-Asignación
-   ↓
-Repartidor
-   ↓
-Entrega
-   ↓
-Comprobante
-   ↓
-Tracking
-   ↓
-Reportes
-```
+- Auditoría de dependencias.
 
 ---
 
@@ -853,20 +888,24 @@ COMPLETED
 JWT Sessions:
 COMPLETED
 
-Refresh Token Rotation:
-COMPLETED
-
 RBAC:
 COMPLETED
 
-Resource Ownership:
+Ownership:
+COMPLETED
+
+Request Validation:
+COMPLETED
+
+API Hardening:
 COMPLETED
 ```
 
 Próxima etapa:
 
 ```text
-Request Validation + API Hardening
+DELIVERYOPS WEB
+React + Vite
 ```
 
 ---

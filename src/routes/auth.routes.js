@@ -6,12 +6,17 @@ import { authController } from '../controllers/auth.controller.js';
 
 import { authenticate } from '../middleware/authenticate.js';
 
+import { validateBody } from '../middleware/validate.js';
+
+import { loginSchema } from '../validators/auth.schemas.js';
+
 import { asyncHandler } from '../utils/asyncHandler.js';
 
 const router = Router();
 
 router.post(
     '/login',
+    validateBody(loginSchema),
     asyncHandler(
         authController.login
     )
