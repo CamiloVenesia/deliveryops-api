@@ -1,30 +1,45 @@
 // src/repositories/delivery.repository.js
 
-import Delivery from '../models/delivery.model.js'
+import Delivery from '../models/delivery.model.js';
 
 export const deliveryRepository = {
 
-    async findAll({ skip, limit }) {
-        return await Delivery.find().skip(skip).limit(limit)
+    async findAll({
+        skip,
+        limit,
+        filter = {}
+    }) {
+        return await Delivery
+            .find(filter)
+            .skip(skip)
+            .limit(limit);
     },
 
-    async count() {
-        return await Delivery.countDocuments()
+    async count(filter = {}) {
+        return await Delivery.countDocuments(
+            filter
+        );
     },
 
     async findById(did) {
-        return await Delivery.findById(did)
+        return await Delivery.findById(
+            did
+        );
     },
 
     async create(data) {
-        return await Delivery.create(data)
+        return await Delivery.create(
+            data
+        );
     },
 
     async deleteById(did) {
-        return await Delivery.findByIdAndDelete(did)
+        return await Delivery.findByIdAndDelete(
+            did
+        );
     },
 
     async save(deliveryDoc) {
-        return await deliveryDoc.save()
+        return await deliveryDoc.save();
     }
-}
+};

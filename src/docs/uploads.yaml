@@ -1,55 +1,89 @@
 paths:
   /api/users/{uid}/documents:
     post:
-      summary: Cargar un documento de un usuario (DNI, licencia, comprobante de domicilio, etc.)
+      summary: Cargar documento de usuario
+      description: >
+        El usuario puede cargar documentos en su propio perfil.
+        Un administrador puede cargar documentos para cualquier usuario.
+
       tags:
-        - Users
+        - Uploads
+
+      security:
+        - BearerAuth: []
+
       parameters:
         - name: uid
           in: path
           required: true
-          description: ID del usuario
+
           schema:
             type: string
+
       requestBody:
         required: true
+
         content:
           multipart/form-data:
             schema:
               type: object
+
               required:
                 - document
+                - documentType
+
               properties:
+                documentType:
+                  type: string
+
+                  enum:
+                    - dni
+                    - licencia_conducir
+                    - comprobante_domicilio
+                    - otro
+
+                  example: dni
+
                 document:
                   type: string
                   format: binary
-                  description: Archivo a subir (JPG, PNG o PDF, máximo 5MB)
-                documentType:
-                  type: string
-                  enum: [dni, licencia_conducir, comprobante_domicilio, otro]
-                  description: Tipo de documento. Si no se envía, se guarda como "otro"
-                  example: dni
+
       responses:
         "201":
-          description: Documento cargado y asociado al usuario correctamente
+          description: Documento cargado correctamente
+
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/User'
+
         "400":
-          description: Falta el archivo, el tipo de archivo no está permitido, o el tipo de documento es inválido
+          description: Archivo o tipo de documento inválido
+
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+        "401":
+          description: Autenticación requerida
+
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+        "403":
+          description: El usuario no puede modificar este perfil
+
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
         "404":
-          description: El usuario indicado no existe
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "500":
-          description: Error al guardar el archivo en el servidor
+          description: Usuario no encontrado
+
           content:
             application/json:
               schema:
@@ -57,50 +91,77 @@ paths:
 
   /api/orders/{oid}/receipt:
     post:
-      summary: Cargar un comprobante asociado a un pedido
+      summary: Cargar comprobante de un pedido
+      description: >
+        Disponible para administradores y customers.
+        Un customer solo puede cargar comprobantes en sus propios pedidos.
+
       tags:
-        - Orders
+        - Uploads
+
+      security:
+        - BearerAuth: []
+
       parameters:
         - name: oid
           in: path
           required: true
-          description: ID del pedido
+
           schema:
             type: string
+
       requestBody:
         required: true
+
         content:
           multipart/form-data:
             schema:
               type: object
+
               required:
                 - receipt
+
               properties:
                 receipt:
                   type: string
                   format: binary
-                  description: Archivo del comprobante (JPG, PNG o PDF, máximo 5MB)
+
       responses:
         "201":
-          description: Comprobante cargado y asociado al pedido correctamente
+          description: Comprobante cargado correctamente
+
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Order'
+
         "400":
-          description: Falta el archivo o el tipo de archivo no está permitido
+          description: Archivo inválido
+
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+        "401":
+          description: Autenticación requerida
+
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+        "403":
+          description: El usuario no tiene acceso al pedido
+
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
         "404":
-          description: El pedido indicado no existe
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "500":
-          description: Error al guardar el archivo en el servidor
+          description: Pedido no encontrado
+
           content:
             application/json:
               schema:
@@ -108,50 +169,78 @@ paths:
 
   /api/deliveries/{did}/receipt:
     post:
-      summary: Cargar un comprobante asociado a una entrega
+      summary: Cargar comprobante de una entrega
+      description: >
+        Disponible para administradores y drivers.
+        Un driver solo puede cargar comprobantes en entregas
+        que estén asignadas a él.
+
       tags:
-        - Deliveries
+        - Uploads
+
+      security:
+        - BearerAuth: []
+
       parameters:
         - name: did
           in: path
           required: true
-          description: ID de la entrega
+
           schema:
             type: string
+
       requestBody:
         required: true
+
         content:
           multipart/form-data:
             schema:
               type: object
+
               required:
                 - receipt
+
               properties:
                 receipt:
                   type: string
                   format: binary
-                  description: Archivo del comprobante (JPG, PNG o PDF, máximo 5MB)
+
       responses:
         "201":
-          description: Comprobante cargado y asociado a la entrega correctamente
+          description: Comprobante cargado correctamente
+
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Delivery'
+
         "400":
-          description: Falta el archivo o el tipo de archivo no está permitido
+          description: Archivo inválido
+
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+        "401":
+          description: Autenticación requerida
+
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+        "403":
+          description: El driver no tiene acceso a esta entrega
+
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
         "404":
-          description: La entrega indicada no existe
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        "500":
-          description: Error al guardar el archivo en el servidor
+          description: Entrega no encontrada
+
           content:
             application/json:
               schema:

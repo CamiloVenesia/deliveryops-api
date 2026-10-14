@@ -1,38 +1,35 @@
 paths:
   /api/users:
     get:
-      summary: Obtener usuarios
-      description: Obtiene una lista paginada de usuarios. Las contraseñas nunca se incluyen en las respuestas.
+      summary: Obtener todos los usuarios
+      description: Solo disponible para administradores.
       tags:
         - Users
 
-      parameters:
-        - name: page
-          in: query
-          required: false
-          description: Número de página
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-
-        - name: limit
-          in: query
-          required: false
-          description: Cantidad máxima de usuarios por página. El límite máximo permitido es 50.
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 50
-            default: 10
+      security:
+        - BearerAuth: []
 
       responses:
         "200":
-          description: Lista paginada de usuarios obtenida correctamente
+          description: Lista paginada de usuarios
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedUsers'
+
+        "401":
+          description: Autenticación requerida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+        "403":
+          description: Solo los administradores pueden listar usuarios
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
         "500":
           description: Error interno del servidor
@@ -43,12 +40,13 @@ paths:
 
     post:
       summary: Crear un nuevo usuario
-      description: Crea un usuario y almacena su contraseña mediante hash seguro con bcrypt. La contraseña nunca se devuelve en la respuesta.
+      description: Endpoint público de registro. No permite crear usuarios con rol admin.
       tags:
         - Users
 
       requestBody:
         required: true
+
         content:
           application/json:
             schema:
@@ -63,26 +61,27 @@ paths:
               properties:
                 firstName:
                   type: string
-                  example: Ruti
+                  example: Ana
 
                 lastName:
                   type: string
-                  example: Esposito
+                  example: Perez
 
                 email:
                   type: string
                   format: email
-                  example: ruti@mail.com
+                  example: ana@mail.com
 
                 password:
                   type: string
                   format: password
                   writeOnly: true
-                  example: "PasswordSeguro123"
+                  example: PasswordSeguro123
 
                 role:
                   type: string
                   enum:
+                    - admin
                     - customer
                     - driver
                     - store
@@ -121,9 +120,12 @@ paths:
   /api/users/{uid}:
     get:
       summary: Obtener un usuario por ID
-      description: Devuelve los datos públicos del usuario. La contraseña nunca se incluye.
+      description: Un usuario puede consultar su propio perfil. Un administrador puede consultar cualquier usuario.
       tags:
         - Users
+
+      security:
+        - BearerAuth: []
 
       parameters:
         - name: uid
@@ -141,6 +143,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
 
+        "401":
+          description: Autenticación requerida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+        "403":
+          description: El usuario no tiene permiso para consultar este perfil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
         "404":
           description: Usuario no encontrado
           content:
@@ -157,8 +173,12 @@ paths:
 
     delete:
       summary: Eliminar un usuario por ID
+      description: Solo disponible para administradores.
       tags:
         - Users
+
+      security:
+        - BearerAuth: []
 
       parameters:
         - name: uid
@@ -175,6 +195,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
+
+        "401":
+          description: Autenticación requerida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+        "403":
+          description: Solo los administradores pueden eliminar usuarios
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
         "404":
           description: Usuario no encontrado
