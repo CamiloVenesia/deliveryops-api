@@ -2,15 +2,15 @@
 
 **Plataforma de gestión de entregas y operaciones logísticas**
 
-DeliveryOps es una API REST desarrollada con Node.js, Express y MongoDB para centralizar la gestión de usuarios, pedidos, entregas, repartidores, documentos y operaciones asociadas a un flujo logístico.
+DeliveryOps es una API REST desarrollada con Node.js, Express y MongoDB para centralizar la gestión de usuarios, pedidos, entregas, repartidores, documentos y operaciones logísticas.
 
-El proyecto está evolucionando hacia una plataforma completa de operaciones de última milla, incorporando progresivamente autenticación, autorización por roles, tracking, asignación de repartidores, reportes, notificaciones y un dashboard administrativo.
+El proyecto evoluciona hacia una plataforma completa de operaciones de última milla, incorporando autenticación segura, gestión de sesiones, tracking, asignación de repartidores, reportes, notificaciones y un futuro dashboard administrativo.
 
 ---
 
-## Estado actual
+# Estado actual
 
-Actualmente la API permite:
+Actualmente DeliveryOps cuenta con:
 
 - Gestión de usuarios.
 - Gestión de pedidos.
@@ -19,21 +19,30 @@ Actualmente la API permite:
 - Actualización de estados.
 - Asociación de repartidores.
 - Carga de documentos.
-- Carga de comprobantes de pedidos y entregas.
+- Carga de comprobantes.
 - Generación de datos simulados.
 - Paginación.
 - Manejo centralizado de errores.
 - Logging estructurado.
-- Documentación interactiva con Swagger.
-- Hash seguro de contraseñas mediante bcrypt.
-- Exclusión de contraseñas de las respuestas públicas.
+- Documentación Swagger.
+- Contraseñas hasheadas con bcrypt.
+- Login con JWT.
+- Access Tokens.
+- Refresh Tokens.
+- Refresh Token mediante cookie HttpOnly.
+- Persistencia de sesiones en MongoDB.
+- Hash del Refresh Token almacenado en base de datos.
+- Rotación de Refresh Tokens.
+- Detección de reutilización de Refresh Tokens.
+- Revocación de sesiones mediante logout.
+- Endpoint de usuario autenticado.
 - Testing funcional automatizado.
-- Ejecución local o mediante Docker.
+- Docker y Docker Compose.
 
 La suite actual cuenta con:
 
 ```text
-39 tests funcionales
+47 tests pasando
 ```
 
 ---
@@ -54,6 +63,11 @@ La suite actual cuenta con:
 ## Seguridad
 
 - bcrypt
+- JSON Web Tokens
+- Access Tokens
+- Refresh Tokens
+- Cookies HttpOnly
+- Sesiones revocables
 
 ## Testing
 
@@ -94,7 +108,7 @@ La suite actual cuenta con:
 
 # Arquitectura
 
-La arquitectura principal del proyecto sigue el flujo:
+La arquitectura principal sigue el flujo:
 
 ```text
 Router
@@ -112,15 +126,15 @@ Cada capa tiene una responsabilidad definida.
 
 ## Router
 
-Define endpoints y delega las solicitudes HTTP.
+Define endpoints y aplica middleware.
 
 ## Controller
 
-Gestiona `req` y `res`, invoca al service correspondiente y construye la respuesta HTTP.
+Gestiona `req` y `res` y delega la lógica al service.
 
 ## Service
 
-Contiene reglas de negocio, validaciones y coordinación entre las distintas partes del dominio.
+Contiene las reglas de negocio.
 
 ## Repository
 
@@ -130,15 +144,35 @@ Centraliza el acceso a MongoDB mediante Mongoose.
 
 Define los schemas y entidades persistidas.
 
-Los dominios principales de usuarios, pedidos y entregas siguen esta separación por capas.
+---
 
-Actualmente el módulo de productos conserva una implementación más simple:
+# Arquitectura de autenticación
+
+El módulo de autenticación mantiene la misma separación:
 
 ```text
-Router → Service → Model
+auth.routes.js
+      ↓
+auth.controller.js
+      ↓
+auth.service.js
+      ↓
+auth.repository.js
+      ↓
+auth-session.model.js
 ```
 
-Está previsto migrarlo al mismo patrón arquitectónico que el resto de la aplicación.
+La validación de Access Tokens se realiza mediante:
+
+```text
+authenticate.js
+```
+
+La generación y verificación de JWT se concentra en:
+
+```text
+token.js
+```
 
 ---
 
@@ -154,12 +188,14 @@ src/
 │   └── error.constants.js
 │
 ├── controllers/
+│   ├── auth.controller.js
 │   ├── delivery.controller.js
 │   ├── mocks.controller.js
 │   ├── order.controller.js
 │   └── user.controller.js
 │
 ├── docs/
+│   ├── auth.yaml
 │   ├── deliveries.yaml
 │   ├── health.yaml
 │   ├── logger.yaml
@@ -171,23 +207,27 @@ src/
 │   └── swagger.config.js
 │
 ├── middleware/
+│   ├── authenticate.js
 │   ├── basicAuth.js
 │   ├── errorHandler.js
 │   └── handleUpload.js
 │
 ├── models/
+│   ├── auth-session.model.js
 │   ├── delivery.model.js
 │   ├── order.model.js
 │   ├── product.model.js
 │   └── user.model.js
 │
 ├── repositories/
+│   ├── auth.repository.js
 │   ├── delivery.repository.js
 │   ├── mocks.repository.js
 │   ├── order.repository.js
 │   └── user.repository.js
 │
 ├── routes/
+│   ├── auth.routes.js
 │   ├── deliveries.routes.js
 │   ├── health.routes.js
 │   ├── logger.routes.js
@@ -197,6 +237,7 @@ src/
 │   └── users.routes.js
 │
 ├── services/
+│   ├── auth.service.js
 │   ├── delivery.service.js
 │   ├── mocks.service.js
 │   ├── order.service.js
@@ -206,17 +247,19 @@ src/
 ├── utils/
 │   ├── asyncHandler.js
 │   ├── customError.js
-│   └── logger.js
+│   ├── logger.js
+│   └── token.js
 │
 ├── app.js
 └── server.js
 ```
 
-Los tests se encuentran separados de la aplicación:
+Tests:
 
 ```text
 tests/
 ├── setup.js
+├── auth.test.js
 ├── docs.test.js
 ├── logger.test.js
 ├── mocks.test.js
@@ -242,7 +285,7 @@ Entrá al proyecto:
 cd deliveryops-api
 ```
 
-Instalá las dependencias:
+Instalá dependencias:
 
 ```bash
 npm install
@@ -252,13 +295,19 @@ npm install
 
 # Variables de entorno
 
-Creá un archivo `.env` tomando como referencia:
+Creá:
+
+```text
+.env
+```
+
+tomando como referencia:
 
 ```text
 .env.example
 ```
 
-Configuración local de ejemplo:
+Ejemplo:
 
 ```env
 PORT=3000
@@ -270,32 +319,20 @@ NODE_ENV=development
 LOG_LEVEL=debug
 
 BASIC_AUTH_USER=dev
-BASIC_AUTH_PASSWORD=deliveryops123
+BASIC_AUTH_PASSWORD=change-this-password
+
+JWT_ACCESS_SECRET=change-this-access-secret
+JWT_REFRESH_SECRET=change-this-refresh-secret
+
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
 ```
 
-Las credenciales incluidas en `.env.example` están pensadas únicamente para desarrollo local.
-
-En producción deben utilizarse secretos seguros y diferentes.
-
-El archivo `.env` no debe versionarse.
+Los secretos reales nunca deben versionarse.
 
 ---
 
-## Variables disponibles
-
-| Variable | Descripción |
-| --- | --- |
-| `PORT` | Puerto HTTP de la API |
-| `MONGO_URL` | Conexión principal a MongoDB |
-| `MONGO_URL_TEST` | Base de datos exclusiva para tests |
-| `NODE_ENV` | Entorno de ejecución |
-| `LOG_LEVEL` | Nivel de logging |
-| `BASIC_AUTH_USER` | Usuario para Swagger y endpoints internos |
-| `BASIC_AUTH_PASSWORD` | Contraseña para Swagger y endpoints internos |
-
-Las variables críticas son verificadas durante el inicio de la aplicación.
-
-Actualmente son obligatorias:
+# Variables obligatorias
 
 ```text
 PORT
@@ -303,48 +340,28 @@ MONGO_URL
 NODE_ENV
 BASIC_AUTH_USER
 BASIC_AUTH_PASSWORD
+JWT_ACCESS_SECRET
+JWT_REFRESH_SECRET
+JWT_ACCESS_EXPIRES_IN
+JWT_REFRESH_EXPIRES_IN
 ```
 
-Si falta alguna, el servidor no inicia.
-
-Ejemplo:
-
-```text
-[FATAL] Faltan variables de entorno obligatorias: MONGO_URL
-Revisá tu archivo .env (podés basarte en .env.example)
-```
-
-Las credenciales de Basic Auth no poseen valores por defecto hardcodeados dentro de la aplicación.
+`JWT_ACCESS_SECRET` y `JWT_REFRESH_SECRET` deben ser diferentes.
 
 ---
 
 # Ejecución local
 
-Asegurate de tener MongoDB funcionando.
-
-En Windows podés comprobarlo con:
+Comprobar MongoDB en Windows:
 
 ```powershell
 Get-Service MongoDB
 ```
 
-Si el servicio está detenido:
-
-```powershell
-Start-Service MongoDB
-```
-
-Luego iniciá el servidor en modo desarrollo:
+Iniciar desarrollo:
 
 ```bash
 npm run dev
-```
-
-Salida esperada:
-
-```text
-Conexión a MongoDB establecida
-Servidor DeliveryOps escuchando en el puerto 3000 (entorno: development)
 ```
 
 La API queda disponible en:
@@ -353,31 +370,23 @@ La API queda disponible en:
 http://localhost:3000
 ```
 
-Para ejecución normal:
-
-```bash
-npm start
-```
-
 ---
 
 # Docker
 
-DeliveryOps puede ejecutarse mediante Docker Compose.
-
-## Validar configuración
+Validar configuración:
 
 ```bash
 docker compose config
 ```
 
-## Levantar la aplicación
+Levantar:
 
 ```bash
 docker compose up --build
 ```
 
-Esto crea los siguientes recursos:
+Recursos principales:
 
 ```text
 deliveryops-api
@@ -386,33 +395,13 @@ deliveryops-network
 deliveryops-mongo-data
 ```
 
-La API queda disponible en:
-
-```text
-http://localhost:3000
-```
-
-MongoDB queda disponible desde el host en:
-
-```text
-mongodb://localhost:27017
-```
-
-Dentro de Docker, la API se conecta mediante:
-
-```text
-mongodb://mongo:27017/deliveryops
-```
-
----
-
-## Detener los contenedores
+Detener:
 
 ```bash
 docker compose down
 ```
 
-Para eliminar también el volumen de MongoDB:
+Eliminar también datos:
 
 ```bash
 docker compose down -v
@@ -428,187 +417,267 @@ Ejecutar:
 npm test
 ```
 
-El comando utilizado actualmente es:
+Estado actual:
 
-```bash
-cross-env NODE_ENV=test mocha --exit tests/setup.js tests/**/*.test.js
+```text
+47 passing
 ```
 
-La suite utiliza una base independiente:
+La suite utiliza:
 
 ```text
 deliveryops-test
 ```
 
-Antes de cada test se limpian las colecciones correspondientes para mantener aislamiento entre casos.
+como base de datos independiente.
 
-Estado actual:
+---
+
+# Autenticación
+
+DeliveryOps implementa autenticación mediante:
 
 ```text
-39 passing
+Email + Password
+       ↓
+bcrypt.compare()
+       ↓
+Access Token
+       +
+Refresh Token
 ```
 
 ---
 
-# Cobertura funcional actual
+## Access Token
 
-Los tests verifican:
+El Access Token es un JWT de corta duración.
 
-- Creación de usuarios.
-- Consulta de usuarios.
-- Paginación.
-- Validaciones de datos.
-- Restricciones por roles existentes.
-- Hash de contraseñas con bcrypt.
-- Verificación de hashes mediante `bcrypt.compare`.
-- Exclusión de passwords en respuestas de usuarios.
-- Exclusión de passwords en mocks públicos.
-- Persistencia de passwords hasheadas en mocks.
-- Creación de pedidos.
-- Cálculo de totales.
-- Actualización de estados.
-- Pedidos ya entregados.
-- Clientes inexistentes.
-- Generación de mocks.
-- Persistencia de datos simulados.
-- Documentos de usuarios.
-- Comprobantes de pedidos.
-- Comprobantes de entregas.
-- Validación de tipos de archivo.
-- Archivos faltantes.
-- Entidades inexistentes.
-- Logger.
-- Swagger protegido.
-- Manejo de rutas inexistentes.
-
----
-
-# Seguridad de contraseñas
-
-Las contraseñas de usuarios se procesan con `bcrypt` antes de persistirse en MongoDB.
-
-El flujo actual es:
+Actualmente:
 
 ```text
-Password recibido
-      ↓
-bcrypt.hash()
-      ↓
-Hash
-      ↓
-MongoDB
+15 minutos
 ```
 
-La contraseña en texto plano no se almacena mediante los flujos públicos de creación de usuarios.
-
-El modelo de usuario utiliza:
+Incluye:
 
 ```text
-select: false
+sub
+role
+type
+jti
+iat
+exp
 ```
 
-para evitar que el campo `password` sea recuperado automáticamente en consultas normales.
-
-Además, las transformaciones de:
-
-```text
-toJSON
-toObject
-```
-
-eliminan el campo `password` como capa adicional de protección antes de serializar usuarios.
-
-Cuando un flujo interno necesita acceder explícitamente al hash, debe utilizar:
-
-```js
-.select('+password')
-```
-
-Esto será necesario posteriormente para implementar el proceso de login.
-
----
-
-# Mocks y seguridad
-
-Los usuarios generados mediante mocks utilizan passwords aleatorias para construir los datos internos.
-
-Antes de persistir usuarios simulados:
-
-```text
-Password generado
-      ↓
-bcrypt.hash()
-      ↓
-MongoDB
-```
-
-El endpoint público de generación de usuarios simulados elimina el campo `password` antes de devolver la respuesta.
-
-Los tests verifican tanto la ausencia de passwords en respuestas como la existencia de hashes válidos dentro de MongoDB.
-
----
-
-# Documentación Swagger
-
-Con la aplicación funcionando:
-
-```text
-http://localhost:3000/api/docs
-```
-
-Swagger está protegido mediante Basic Auth.
-
-Las credenciales se obtienen exclusivamente de:
-
-```text
-BASIC_AUTH_USER
-BASIC_AUTH_PASSWORD
-```
-
-No existen credenciales de Basic Auth por defecto dentro del código de producción.
-
----
-
-## Passwords en Swagger
-
-El password solamente aparece como campo de entrada para la creación de usuarios.
-
-Está declarado como:
-
-```yaml
-format: password
-writeOnly: true
-```
-
-El schema público `User` no contiene el campo `password`.
-
-De esta manera Swagger refleja correctamente que las contraseñas nunca forman parte de las respuestas públicas de la API.
-
----
-
-## Uso de Swagger
-
-Después de ingresar las credenciales:
-
-1. Abrí un endpoint.
-2. Presioná `Try it out`.
-3. Completá los parámetros o el body.
-4. Presioná `Execute`.
-5. Revisá el status code y la respuesta.
-
----
-
-# Endpoints principales
-
-## Health
+Se envía mediante:
 
 ```http
-GET /api/health
+Authorization: Bearer ACCESS_TOKEN
 ```
 
 ---
 
-## Users
+## Refresh Token
+
+El Refresh Token tiene una duración actual de:
+
+```text
+7 días
+```
+
+Se entrega mediante una cookie:
+
+```text
+deliveryops_refresh
+```
+
+con:
+
+```text
+HttpOnly
+```
+
+y configuración adaptada según el entorno.
+
+El Refresh Token no se devuelve en el body de las respuestas.
+
+---
+
+# Persistencia de sesiones
+
+Cada login crea una sesión en MongoDB.
+
+La sesión contiene:
+
+```text
+user
+tokenHash
+jti
+expiresAt
+revokedAt
+replacedBySession
+userAgent
+ipAddress
+```
+
+El Refresh Token original no se almacena.
+
+El flujo es:
+
+```text
+Refresh Token
+      ↓
+SHA-256
+      ↓
+tokenHash
+      ↓
+MongoDB
+```
+
+---
+
+# Rotación de Refresh Tokens
+
+Cada vez que se utiliza:
+
+```http
+POST /api/auth/refresh
+```
+
+el Refresh Token anterior es revocado y se crea uno nuevo.
+
+```text
+Refresh Token A
+      ↓
+Refresh
+      ↓
+Token A revocado
+      ↓
+Refresh Token B
+```
+
+Esto reduce el impacto de robo de tokens.
+
+---
+
+# Detección de reutilización
+
+Si se intenta reutilizar un Refresh Token que ya fue rotado:
+
+```text
+REFRESH_TOKEN_REUSED
+```
+
+DeliveryOps revoca las sesiones activas asociadas al usuario.
+
+---
+
+# Logout
+
+```http
+POST /api/auth/logout
+```
+
+El logout:
+
+- revoca la sesión actual;
+- invalida el Refresh Token asociado;
+- elimina la cookie de autenticación.
+
+---
+
+# Usuario autenticado
+
+```http
+GET /api/auth/me
+```
+
+Requiere:
+
+```http
+Authorization: Bearer ACCESS_TOKEN
+```
+
+Devuelve los datos públicos del usuario autenticado.
+
+Nunca devuelve:
+
+```text
+password
+```
+
+---
+
+# Endpoints de autenticación
+
+## Login
+
+```http
+POST /api/auth/login
+```
+
+Body:
+
+```json
+{
+  "email": "usuario@deliveryops.com",
+  "password": "PasswordSeguro123"
+}
+```
+
+Respuesta:
+
+```json
+{
+  "user": {
+    "_id": "USER_ID",
+    "firstName": "Usuario",
+    "lastName": "DeliveryOps",
+    "email": "usuario@deliveryops.com",
+    "role": "customer"
+  },
+  "accessToken": "JWT"
+}
+```
+
+---
+
+## Refresh
+
+```http
+POST /api/auth/refresh
+```
+
+Utiliza automáticamente la cookie HttpOnly.
+
+Respuesta:
+
+```json
+{
+  "accessToken": "NEW_JWT"
+}
+```
+
+---
+
+## Logout
+
+```http
+POST /api/auth/logout
+```
+
+---
+
+## Usuario actual
+
+```http
+GET /api/auth/me
+```
+
+---
+
+# Users
 
 ```http
 GET    /api/users
@@ -617,7 +686,7 @@ GET    /api/users/:uid
 DELETE /api/users/:uid
 ```
 
-Carga de documentos:
+Documentos:
 
 ```http
 POST /api/users/:uid/documents
@@ -625,7 +694,7 @@ POST /api/users/:uid/documents
 
 ---
 
-## Orders
+# Orders
 
 ```http
 GET    /api/orders
@@ -635,7 +704,7 @@ PATCH  /api/orders/:oid/status
 DELETE /api/orders/:oid
 ```
 
-Carga de comprobante:
+Comprobante:
 
 ```http
 POST /api/orders/:oid/receipt
@@ -643,7 +712,7 @@ POST /api/orders/:oid/receipt
 
 ---
 
-## Deliveries
+# Deliveries
 
 ```http
 GET    /api/deliveries
@@ -653,7 +722,7 @@ PATCH  /api/deliveries/:did/status
 DELETE /api/deliveries/:did
 ```
 
-Carga de comprobante:
+Comprobante:
 
 ```http
 POST /api/deliveries/:did/receipt
@@ -661,7 +730,7 @@ POST /api/deliveries/:did/receipt
 
 ---
 
-## Products
+# Products
 
 ```http
 GET    /api/products
@@ -671,9 +740,21 @@ PUT    /api/products/:pid
 DELETE /api/products/:pid
 ```
 
+Actualmente Products todavía utiliza:
+
+```text
+Router → Service → Model
+```
+
+Será migrado posteriormente a:
+
+```text
+Router → Controller → Service → Repository → Model
+```
+
 ---
 
-## Mocks
+# Mocks
 
 ```http
 GET  /api/mocks/mockingusers
@@ -682,50 +763,81 @@ GET  /api/mocks/mockingdeliveries
 POST /api/mocks/generateData
 ```
 
-En producción los endpoints internos de mocks están protegidos mediante Basic Auth.
+Las passwords generadas se hashean antes de persistirse.
+
+Nunca se incluyen en respuestas públicas.
 
 ---
 
-## Logger
+# Swagger
 
-```http
-GET /api/loggerTest
+Disponible en:
+
+```text
+http://localhost:3000/api/docs
 ```
 
-Endpoint de diagnóstico para comprobar los niveles configurados en Winston.
+Swagger está protegido mediante Basic Auth.
 
-En producción también está protegido mediante Basic Auth.
+La documentación incluye:
+
+- Users
+- Orders
+- Deliveries
+- Uploads
+- Mocks
+- Health
+- Logger
+- Auth
+
+Swagger también declara:
+
+```text
+BearerAuth
+```
+
+para endpoints protegidos con JWT.
 
 ---
 
-# Paginación
+# Contraseñas
 
-Los endpoints principales admiten:
+Las contraseñas utilizan:
 
 ```text
-?page=1&limit=10
+bcrypt
 ```
 
-El límite máximo permitido actualmente es:
+Flujo:
 
 ```text
-50
+Password
+   ↓
+bcrypt.hash()
+   ↓
+Hash
+   ↓
+MongoDB
+```
+
+El modelo utiliza:
+
+```text
+select: false
+```
+
+y elimina `password` también durante:
+
+```text
+toJSON
+toObject
 ```
 
 ---
 
 # Manejo de errores
 
-DeliveryOps utiliza un sistema centralizado mediante:
-
-```text
-customError
-ERROR_CODES
-errorHandler
-asyncHandler
-```
-
-La estructura estándar es:
+Formato estándar:
 
 ```json
 {
@@ -735,23 +847,21 @@ La estructura estándar es:
 }
 ```
 
-Ejemplo:
+Errores de autenticación actuales:
 
-```json
-{
-  "status": "error",
-  "error": "ORDER_NOT_FOUND",
-  "message": "Pedido no encontrado"
-}
+```text
+INVALID_CREDENTIALS
+UNAUTHORIZED
+INVALID_ACCESS_TOKEN
+INVALID_REFRESH_TOKEN
+REFRESH_TOKEN_REUSED
 ```
-
-Esto permite mantener respuestas consistentes independientemente del endpoint que produzca el error.
 
 ---
 
 # Logging
 
-El sistema utiliza Winston con los niveles:
+Niveles:
 
 ```text
 fatal
@@ -762,26 +872,16 @@ http
 debug
 ```
 
-En desarrollo los logs se muestran por consola.
-
-En producción se almacenan mediante archivos con rotación diaria.
-
-Archivos generados:
+Producción:
 
 ```text
 logs/combined-FECHA.log
 logs/error-FECHA.log
 ```
 
-La retención configurada es de 14 días.
-
-La carpeta `logs/` no se versiona.
-
 ---
 
 # Uploads
-
-Los archivos son administrados mediante Multer.
 
 Formatos permitidos:
 
@@ -797,71 +897,50 @@ Tamaño máximo:
 5 MB
 ```
 
-Los archivos se almacenan en:
+Archivos locales:
 
 ```text
 uploads/
 ```
 
-MongoDB almacena únicamente los metadatos asociados.
-
-Entre ellos:
-
-```text
-originalName
-generatedName
-path
-mimetype
-size
-uploadedAt
-```
-
-Para documentos de usuarios también se almacena:
-
-```text
-documentType
-```
-
 ---
 
-# Seguridad actual
+# Seguridad implementada
 
-Actualmente DeliveryOps cuenta con:
+Actualmente DeliveryOps incluye:
 
-- Hash seguro de contraseñas mediante bcrypt.
-- Contraseñas excluidas por defecto de las consultas de usuarios.
-- Contraseñas eliminadas durante serialización JSON.
-- Passwords de mocks hasheadas antes de persistirse.
-- Passwords excluidas de respuestas de mocks.
-- Tests específicos de seguridad de contraseñas.
-- Validación de variables de entorno.
-- Basic Auth sin credenciales hardcodeadas por defecto.
-- Manejo centralizado de errores.
-- Ejecución Docker mediante usuario no-root.
-- Basic Auth para Swagger.
-- Protección de endpoints internos en producción.
-- Separación entre bases de desarrollo y testing.
-- Restricciones de tipos y tamaño de archivos.
-
----
-
-# Limitaciones de seguridad actuales
-
-DeliveryOps todavía no cuenta con:
-
-- Login de usuarios.
-- JWT.
+- bcrypt para passwords.
+- Passwords excluidas de respuestas.
+- JWT Access Tokens.
 - Refresh Tokens.
-- Autorización completa basada en roles.
-- Validación mediante schemas especializados.
-- Helmet.
-- Rate limiting general.
-- Política CORS configurable.
-- Autenticación de MongoDB en Docker.
-- Gestión de sesiones.
-- Revocación de tokens.
+- Cookies HttpOnly.
+- Refresh Token rotation.
+- Detección de reutilización.
+- Sesiones revocables.
+- Hash de Refresh Tokens en MongoDB.
+- `jti` único por token.
+- Separación de secrets para Access y Refresh.
+- Middleware Bearer Authentication.
+- Basic Auth para Swagger.
+- Manejo centralizado de errores.
+- Docker con usuario no-root.
+- Tests específicos de autenticación.
 
-Estas mejoras forman parte de las próximas etapas.
+---
+
+# Seguridad pendiente
+
+Próximamente:
+
+- RBAC completo.
+- Validación con schemas.
+- Helmet.
+- CORS configurable.
+- Rate limiting.
+- MongoDB con autenticación.
+- Gestión avanzada de sesiones.
+- Protección adicional contra abuso.
+- Políticas de password.
 
 ---
 
@@ -871,51 +950,54 @@ Estas mejoras forman parte de las próximas etapas.
 
 ### Completado
 
-- Hash de contraseñas con bcrypt.
-- Eliminación de passwords de las respuestas.
-- Protección del schema público de usuarios.
-- Passwords seguras en datos mock.
-- Eliminación de credenciales Basic Auth hardcodeadas.
+- bcrypt.
+- Passwords ocultas.
+- Login.
+- JWT Access Token.
+- Refresh Token.
+- Cookie HttpOnly.
+- Sesiones persistidas.
+- Token rotation.
+- Detección de reutilización.
+- Logout.
+- Endpoint `/me`.
 
 ### Próximo
 
-- Login.
-- JWT Access Token.
-- Refresh Tokens.
-- Autorización basada en roles.
-- Validación estructurada de requests.
+- RBAC.
+- Validación de requests.
 - Helmet.
 - CORS configurable.
 - Rate limiting.
-- Protección avanzada de secretos.
-- Autenticación de MongoDB en Docker.
+- Seguridad de MongoDB.
 
 ---
 
 ## Fase 2 — Operaciones logísticas
 
-- Máquina de estados para pedidos y entregas.
+- Máquina de estados.
 - Asignación de repartidores.
-- Tracking de entregas.
+- Tracking.
 - Historial de estados.
-- Costos logísticos.
+- Costos.
 - Filtros avanzados.
 - Reportes.
 - Proof of Delivery.
 - Notificaciones.
-- Integración de correo electrónico.
+- Email.
 - Integración futura con WhatsApp.
 
 ---
 
-## Fase 3 — Aplicaciones cliente
+## Fase 3 — Frontend
 
-- Dashboard administrativo en React.
+- Dashboard React.
+- Panel administrativo.
 - Panel de repartidor.
-- Gestión visual de pedidos.
-- Gestión visual de entregas.
-- Seguimiento público de entregas.
-- Métricas operativas.
+- Gestión de pedidos.
+- Gestión de entregas.
+- Tracking público.
+- Métricas.
 
 ---
 
@@ -923,32 +1005,29 @@ Estas mejoras forman parte de las próximas etapas.
 
 - CI/CD.
 - Deploy.
-- Seeds.
 - Versionado de API.
-- Mayor cobertura de testing.
-- Colección de Postman.
+- Seeds.
+- Más testing.
+- Postman.
 - Monitoring.
-- Gestión segura de secretos.
+- Gestión de secretos.
 
 ---
 
-## Fase 5 — Producto y portfolio
+## Fase 5 — Portfolio
 
-- Caso de estudio técnico.
-- Documentación de arquitectura.
-- Diagramas del sistema.
-- Demo pública.
-- Capturas del dashboard.
-- Descripción de decisiones técnicas.
-- Presentación profesional dentro del portfolio.
+- Caso de estudio.
+- Diagramas.
+- Demo.
+- Capturas.
+- Arquitectura documentada.
+- Presentación profesional.
 
 ---
 
-# Objetivo del proyecto
+# Objetivo
 
-DeliveryOps busca evolucionar desde una API REST funcional hacia una plataforma integral para la administración de operaciones de entrega.
-
-El objetivo final es centralizar en una misma solución:
+DeliveryOps busca centralizar:
 
 ```text
 Cliente
@@ -970,88 +1049,22 @@ Tracking
 Reportes
 ```
 
-La plataforma estará orientada principalmente a operaciones de última milla, comercios, pequeñas empresas y equipos logísticos que necesiten centralizar pedidos, repartidores y entregas.
-
 ---
 
-# Próximas mejoras técnicas
-
-Entre las mejoras prioritarias se encuentran:
-
-- Implementar login.
-- Implementar autenticación JWT.
-- Incorporar Refresh Tokens.
-- Implementar permisos basados en roles.
-- Validar requests mediante schemas.
-- Incorporar middleware de seguridad.
-- Mejorar la estrategia de rate limiting.
-- Implementar autenticación de MongoDB.
-- Migrar Products a la arquitectura completa.
-- Mejorar almacenamiento de archivos.
-- Incrementar cobertura de tests.
-- Incorporar testing específico de autenticación y autorización.
-
----
-
-# Convenciones del proyecto
-
-La aplicación intenta mantener una separación clara entre:
+# Estado actual
 
 ```text
-HTTP
-↓
-Controller
-↓
-Business Logic
-↓
-Repository
-↓
-Persistence
+DeliveryOps API
+47 tests passing
+JWT Authentication implemented
+Refresh Token Rotation implemented
 ```
 
-Los errores de negocio no se construyen directamente dentro de las rutas.
-
-La lógica relacionada con MongoDB debe concentrarse progresivamente en repositories.
-
-Los controllers deben mantenerse livianos.
-
-Los services concentran reglas de negocio.
-
-Las respuestas de error deben mantener el formato estándar definido por el proyecto.
-
-Las contraseñas nunca deben formar parte de las respuestas públicas.
-
----
-
-# Archivos ignorados
-
-El repositorio no versiona:
+La próxima etapa corresponde a:
 
 ```text
-node_modules/
-.env
-logs/
-uploads/
-coverage/
+RBAC — Role Based Access Control
 ```
-
-Los archivos sensibles y generados durante la ejecución permanecen fuera de Git.
-
----
-
-# Estado del proyecto
-
-DeliveryOps se encuentra actualmente en desarrollo activo.
-
-La base funcional cuenta con:
-
-```text
-39 tests pasando
-```
-
-El almacenamiento seguro de contraseñas ya está implementado.
-
-La próxima etapa corresponde a la construcción del sistema de autenticación.
 
 ---
 

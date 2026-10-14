@@ -1,0 +1,178 @@
+paths:
+  /api/auth/login:
+    post:
+      tags:
+        - Auth
+
+      summary: Iniciar sesión
+
+      description: >
+        Valida email y contraseña, devuelve un Access Token JWT
+        y almacena el Refresh Token en una cookie HttpOnly.
+
+      requestBody:
+        required: true
+
+        content:
+          application/json:
+            schema:
+              type: object
+
+              required:
+                - email
+                - password
+
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: usuario@deliveryops.com
+
+                password:
+                  type: string
+                  format: password
+                  writeOnly: true
+                  example: PasswordSeguro123
+
+      responses:
+        "200":
+          description: Inicio de sesión correcto
+
+          headers:
+            Set-Cookie:
+              description: Refresh Token almacenado en cookie HttpOnly
+              schema:
+                type: string
+
+          content:
+            application/json:
+              schema:
+                type: object
+
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+
+                  accessToken:
+                    type: string
+                    description: JWT de acceso de corta duración
+
+        "400":
+          description: Email o contraseña faltantes
+
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+        "401":
+          description: Credenciales incorrectas
+
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/refresh:
+    post:
+      tags:
+        - Auth
+
+      summary: Renovar Access Token
+
+      description: >
+        Utiliza el Refresh Token almacenado en la cookie HttpOnly.
+        Genera un nuevo Access Token y rota el Refresh Token.
+
+      responses:
+        "200":
+          description: Tokens renovados correctamente
+
+          headers:
+            Set-Cookie:
+              description: Nuevo Refresh Token rotado
+              schema:
+                type: string
+
+          content:
+            application/json:
+              schema:
+                type: object
+
+                properties:
+                  accessToken:
+                    type: string
+
+        "401":
+          description: >
+            Refresh Token inválido, expirado, revocado
+            o reutilizado.
+
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/logout:
+    post:
+      tags:
+        - Auth
+
+      summary: Cerrar sesión
+
+      description: >
+        Revoca la sesión asociada al Refresh Token
+        y elimina la cookie de autenticación.
+
+      responses:
+        "200":
+          description: Sesión cerrada correctamente
+
+          content:
+            application/json:
+              schema:
+                type: object
+
+                properties:
+                  message:
+                    type: string
+                    example: Sesión cerrada correctamente
+
+  /api/auth/me:
+    get:
+      tags:
+        - Auth
+
+      summary: Obtener usuario autenticado
+
+      description: >
+        Devuelve los datos del usuario asociado
+        al Access Token enviado mediante Bearer Authentication.
+
+      security:
+        - BearerAuth: []
+
+      responses:
+        "200":
+          description: Usuario autenticado
+
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+        "401":
+          description: Access Token ausente, inválido o expirado
+
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+        "404":
+          description: Usuario no encontrado
+
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

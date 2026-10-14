@@ -4,6 +4,11 @@ components:
       type: http
       scheme: basic
 
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
     ErrorResponse:
       type: object
@@ -11,9 +16,11 @@ components:
         status:
           type: string
           example: error
+
         error:
           type: string
           example: USER_NOT_FOUND
+
         message:
           type: string
           example: Usuario no encontrado
@@ -24,6 +31,7 @@ components:
         status:
           type: string
           example: success
+
         message:
           type: string
           example: Operación realizada correctamente
@@ -58,7 +66,6 @@ components:
 
         size:
           type: integer
-          description: Tamaño del archivo en bytes
           example: 204800
 
         uploadedAt:
@@ -68,6 +75,7 @@ components:
     ReceiptMeta:
       type: object
       nullable: true
+
       properties:
         originalName:
           type: string
@@ -87,7 +95,6 @@ components:
 
         size:
           type: integer
-          description: Tamaño del archivo en bytes
           example: 102400
 
         uploadedAt:
@@ -96,6 +103,7 @@ components:
 
     User:
       type: object
+
       properties:
         _id:
           type: string
@@ -138,6 +146,7 @@ components:
 
     PaginatedUsers:
       type: object
+
       properties:
         items:
           type: array
@@ -162,6 +171,7 @@ components:
 
     OrderItem:
       type: object
+
       properties:
         name:
           type: string
@@ -177,6 +187,7 @@ components:
 
     Order:
       type: object
+
       properties:
         _id:
           type: string
@@ -184,7 +195,6 @@ components:
 
         customer:
           type: string
-          description: ID del usuario que realizó el pedido
           example: 665f4d0a8f9a1b001234abcd
 
         items:
@@ -222,14 +232,13 @@ components:
         delivery:
           type: string
           nullable: true
-          description: ID de la entrega asociada, si existe
-          example: null
 
         receipt:
           $ref: '#/components/schemas/ReceiptMeta'
 
     Delivery:
       type: object
+
       properties:
         _id:
           type: string
@@ -237,13 +246,11 @@ components:
 
         order:
           type: string
-          description: ID del pedido asociado
           example: 665f4d0a8f9a1b005678efgh
 
         driver:
           type: string
           nullable: true
-          description: ID del repartidor asignado
           example: 665f4d0a8f9a1b001234mnop
 
         status:
@@ -274,4 +281,4 @@ components:
           nullable: true
 
         receipt:
-          $ref: '#/components/schemas/ReceiptMeta' 
+          $ref: '#/components/schemas/ReceiptMeta'
