@@ -12,7 +12,9 @@ describe('Swagger Docs', () => {
     });
 
     it('debería responder 200 con las credenciales correctas', async () => {
-        const credentials = Buffer.from('dev:shipnow123').toString('base64');
+        const credentials = Buffer.from(
+            'dev:deliveryops123'
+        ).toString('base64');
 
         const response = await request(app)
             .get('/api/docs/')

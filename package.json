@@ -1,7 +1,7 @@
 {
-  "name": "shipnow-base",
+  "name": "deliveryops-api",
   "version": "1.0.0",
-  "description": "ShipNow API - Backend profesional para gestion de logistica",
+  "description": "DeliveryOps API - Plataforma de gestión de entregas y operaciones logísticas",
   "main": "src/server.js",
   "type": "module",
   "engines": {
@@ -16,7 +16,13 @@
     "backend",
     "api",
     "logistica",
-    "coderhouse"
+    "delivery",
+    "deliveries",
+    "logistics",
+    "operations",
+    "nodejs",
+    "express",
+    "mongodb"
   ],
   "license": "MIT",
   "dependencies": {
