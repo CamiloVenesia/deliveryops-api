@@ -1,32 +1,59 @@
+name: deliveryops
+
 services:
   mongo:
     image: mongo:7
-    container_name: shipnow-mongo
+    container_name: deliveryops-mongo
     restart: unless-stopped
+
     ports:
       - "27017:27017"
+
     volumes:
-      - mongo_data:/data/db
+      - deliveryops_mongo_data:/data/db
+
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test:
+        - CMD
+        - mongosh
+        - --eval
+        - db.adminCommand('ping')
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
 
+    networks:
+      - deliveryops-network
+
   api:
-    build: .
-    container_name: shipnow-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: deliveryops-api
     restart: unless-stopped
+
     ports:
       - "3000:3000"
+
     env_file:
       - .env
+
     environment:
-      - MONGO_URL=mongodb://mongo:27017/shipnow
+      MONGO_URL: mongodb://mongo:27017/deliveryops
+
     depends_on:
       mongo:
         condition: service_healthy
 
+    networks:
+      - deliveryops-network
+
 volumes:
-  mongo_data:
+  deliveryops_mongo_data:
+    name: deliveryops-mongo-data
+
+networks:
+  deliveryops-network:
+    name: deliveryops-network
