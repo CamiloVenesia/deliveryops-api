@@ -1,96 +1,81 @@
 paths:
   /api/deliveries:
     get:
-      summary: Obtener entregas
-      description: >
-        Los administradores pueden consultar todas las entregas.
-        Los drivers solo reciben las entregas asignadas a ellos.
-        Los customers solo reciben entregas correspondientes a sus pedidos.
-
       tags:
         - Deliveries
+      summary: Obtener entregas
+      description: |
+        Devuelve una lista paginada de entregas según el rol autenticado.
 
+        Permisos:
+        - admin: puede consultar todas las entregas.
+        - driver: solamente puede consultar las entregas asignadas a su usuario.
+        - customer: solamente puede consultar entregas asociadas a sus propios pedidos.
       security:
         - BearerAuth: []
-
       responses:
         "200":
           description: Lista paginada de entregas
-
           content:
             application/json:
               schema:
-                type: object
-
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Delivery'
-
-                  page:
-                    type: integer
-                    example: 1
-
-                  limit:
-                    type: integer
-                    example: 10
-
-                  total:
-                    type: integer
-                    example: 5
-
-                  totalPages:
-                    type: integer
-                    example: 1
-
+                $ref: '#/components/schemas/PaginatedDeliveries'
         "401":
           description: Autenticación requerida
-
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "403":
-          description: El rol autenticado no tiene acceso
-
+          description: El usuario autenticado no tiene acceso al recurso
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
     post:
-      summary: Crear una entrega
-      description: Solo disponible para administradores.
-
       tags:
         - Deliveries
+      summary: Crear una entrega
+      description: |
+        Solo disponible para administradores.
 
+        La entrega se crea asociando un pedido con un repartidor.
+
+        Reglas:
+        - el pedido debe existir;
+        - el repartidor debe existir;
+        - el usuario indicado debe tener rol driver;
+        - el pedido no puede tener otra entrega asociada;
+        - el pedido debe encontrarse en un estado compatible con la asignación.
+
+        Al crear la entrega:
+        - la entrega comienza en estado assigned;
+        - se registra assignedAt;
+        - se crea la primera entrada de statusHistory;
+        - el pedido asociado pasa de created a assigned;
+        - el pedido guarda la referencia a la entrega;
+        - el cambio queda registrado también en el historial del pedido.
       security:
         - BearerAuth: []
-
       requestBody:
         required: true
-
         content:
           application/json:
             schema:
               type: object
-
               required:
                 - order
                 - driver
-
               properties:
                 order:
                   type: string
+                  description: ID del pedido
                   example: 665f4d0a8f9a1b005678efgh
-
                 driver:
                   type: string
+                  description: ID del repartidor
                   example: 665f4d0a8f9a1b001234mnop
-
                 priority:
                   type: string
                   enum:
@@ -99,43 +84,33 @@ paths:
                     - high
                   default: normal
                   example: normal
-
       responses:
         "201":
           description: Entrega creada correctamente
-
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Delivery'
-
         "400":
-          description: Datos inválidos o incompletos
-
+          description: Datos inválidos, usuario sin rol driver o pedido no disponible para asignación
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "401":
           description: Autenticación requerida
-
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "403":
           description: Solo los administradores pueden crear entregas
-
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "404":
           description: Pedido o repartidor no encontrado
-
           content:
             application/json:
               schema:
@@ -143,107 +118,113 @@ paths:
 
   /api/deliveries/{did}:
     get:
-      summary: Obtener una entrega por ID
-      description: >
-        Los administradores pueden consultar cualquier entrega.
-        El driver solo puede consultar entregas asignadas a él.
-        El customer solo puede consultar entregas de sus propios pedidos.
-
       tags:
         - Deliveries
+      summary: Obtener una entrega por ID
+      description: |
+        Devuelve una entrega respetando ownership.
 
+        Permisos:
+        - admin: cualquier entrega;
+        - driver: únicamente si es el repartidor asignado;
+        - customer: únicamente si la entrega corresponde a uno de sus pedidos.
       security:
         - BearerAuth: []
-
       parameters:
         - name: did
           in: path
           required: true
           description: ID de la entrega
-
           schema:
             type: string
-
       responses:
         "200":
           description: Entrega obtenida correctamente
-
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Delivery'
-
         "401":
           description: Autenticación requerida
-
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "403":
           description: El usuario no tiene acceso a esta entrega
-
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "404":
           description: Entrega no encontrada
-
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
     delete:
-      summary: Eliminar una entrega
-      description: Solo disponible para administradores.
-
       tags:
         - Deliveries
+      summary: Eliminar una entrega
+      description: |
+        Solo disponible para administradores.
 
+        Únicamente se pueden eliminar entregas en estado:
+        - pending
+        - assigned
+
+        No se pueden eliminar entregas que ya estén en tránsito,
+        entregadas o canceladas.
+
+        Si se elimina una entrega assigned:
+        - la referencia delivery se elimina del pedido;
+        - el pedido vuelve de assigned a created;
+        - se registra el rollback en statusHistory;
+        - el origen del cambio se registra como delivery.
+
+        Esta operación permite deshacer una asignación antes de iniciar
+        físicamente el proceso de entrega.
       security:
         - BearerAuth: []
-
       parameters:
         - name: did
           in: path
           required: true
           description: ID de la entrega
-
           schema:
             type: string
-
       responses:
         "200":
           description: Entrega eliminada correctamente
-
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponse'
-
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Entrega eliminada
+        "400":
+          description: La entrega se encuentra en un estado que no permite su eliminación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         "401":
           description: Autenticación requerida
-
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "403":
           description: Solo los administradores pueden eliminar entregas
-
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "404":
           description: Entrega no encontrada
-
           content:
             application/json:
               schema:
@@ -251,93 +232,177 @@ paths:
 
   /api/deliveries/{did}/status:
     patch:
-      summary: Actualizar estado de una entrega
-      description: >
-        Disponible para administradores y para el driver
-        asignado a la entrega.
-
       tags:
         - Deliveries
+      summary: Actualizar el estado de una entrega
+      description: |
+        Disponible para administradores y para el driver asignado.
 
+        La API utiliza una máquina de estados y rechaza saltos inválidos.
+
+        Transiciones válidas:
+        - pending → assigned | cancelled
+        - assigned → in_transit | cancelled
+        - in_transit → delivered | cancelled
+        - delivered y cancelled son estados terminales
+
+        Ejemplos:
+        - assigned → in_transit: válido
+        - in_transit → delivered: válido
+        - assigned → delivered: inválido
+        - delivered → cancelled: inválido
+
+        Cada modificación registra una entrada en statusHistory con:
+        - from;
+        - to;
+        - changedBy;
+        - changedByRole;
+        - source;
+        - changedAt.
+
+        Los cambios operativos se sincronizan con el pedido asociado.
+
+        Sincronización:
+        - assigned → pedido assigned
+        - in_transit → pedido in_transit
+        - delivered → pedido delivered
+        - cancelled → pedido cancelled
+
+        Cuando la entrega alcanza delivered también se registra deliveredAt.
+
+        Antes de modificar ambos recursos se valida que la transición del
+        pedido asociado también sea válida.
       security:
         - BearerAuth: []
-
       parameters:
         - name: did
           in: path
           required: true
           description: ID de la entrega
-
           schema:
             type: string
-
       requestBody:
         required: true
-
         content:
           application/json:
             schema:
               type: object
-
               required:
                 - status
-
               properties:
                 status:
                   type: string
-
                   enum:
                     - pending
                     - assigned
                     - in_transit
                     - delivered
-
+                    - cancelled
                   example: in_transit
-
       responses:
         "200":
           description: Estado actualizado correctamente
-
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Delivery'
-
         "400":
-          description: Estado inválido o faltante
-
+          description: Estado inválido o transición no permitida
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
+              examples:
+                invalidTransition:
+                  value:
+                    status: error
+                    error: VALIDATION_ERROR
+                    message: "Transición inválida de entrega: assigned → delivered"
         "401":
           description: Autenticación requerida
-
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "403":
-          description: El usuario no puede actualizar esta entrega
-
+          description: El usuario no tiene permiso para modificar esta entrega
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "404":
           description: Entrega no encontrada
-
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "409":
+          description: La entrega ya fue completada y no puede modificarse
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-        "409":
-          description: La entrega ya fue completada
+  /api/deliveries/{did}/receipt:
+    post:
+      tags:
+        - Deliveries
+        - Uploads
+      summary: Cargar comprobante de una entrega
+      description: |
+        Permite adjuntar un comprobante JPG, PNG o PDF.
 
+        Permisos:
+        - admin;
+        - driver asignado a la entrega.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: did
+          in: path
+          required: true
+          description: ID de la entrega
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - receipt
+              properties:
+                receipt:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Comprobante asociado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Delivery'
+        "400":
+          description: Archivo faltante o no permitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Autenticación requerida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: El usuario no tiene acceso a esta entrega
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Entrega no encontrada
           content:
             application/json:
               schema:

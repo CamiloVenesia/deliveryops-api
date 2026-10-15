@@ -1,10 +1,14 @@
-// src/validators/delivery.schemas.js
-
-import { z } from 'zod';
+import {
+    z
+} from 'zod';
 
 import {
     objectIdSchema
 } from './common.schemas.js';
+
+import {
+    DELIVERY_STATUSES
+} from '../constants/status.constants.js';
 
 export const createDeliverySchema =
     z.object({
@@ -27,12 +31,9 @@ export const createDeliverySchema =
 export const updateDeliveryStatusSchema =
     z.object({
         status:
-            z.enum([
-                'pending',
-                'assigned',
-                'in_transit',
-                'delivered'
-            ])
+            z.enum(
+                DELIVERY_STATUSES
+            )
     });
 
 export const deliveryIdParamsSchema =

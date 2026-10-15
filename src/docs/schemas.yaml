@@ -16,14 +16,12 @@ components:
         status:
           type: string
           example: error
-
         error:
           type: string
-          example: USER_NOT_FOUND
-
+          example: VALIDATION_ERROR
         message:
           type: string
-          example: Usuario no encontrado
+          example: Descripción del error
 
     SuccessResponse:
       type: object
@@ -31,7 +29,6 @@ components:
         status:
           type: string
           example: success
-
         message:
           type: string
           example: Operación realizada correctamente
@@ -47,27 +44,21 @@ components:
             - comprobante_domicilio
             - otro
           example: dni
-
         originalName:
           type: string
           example: dni.pdf
-
         generatedName:
           type: string
           example: "1725390000000-123456789.pdf"
-
         path:
           type: string
           example: uploads/users/documents/1725390000000-123456789.pdf
-
         mimetype:
           type: string
           example: application/pdf
-
         size:
           type: integer
           example: 204800
-
         uploadedAt:
           type: string
           format: date-time
@@ -75,53 +66,42 @@ components:
     ReceiptMeta:
       type: object
       nullable: true
-
       properties:
         originalName:
           type: string
           example: comprobante.jpg
-
         generatedName:
           type: string
           example: "1725390000000-987654321.jpg"
-
         path:
           type: string
           example: uploads/orders/receipts/1725390000000-987654321.jpg
-
         mimetype:
           type: string
           example: image/jpeg
-
         size:
           type: integer
           example: 102400
-
         uploadedAt:
           type: string
           format: date-time
 
     User:
       type: object
-
       properties:
         _id:
           type: string
           example: 665f4d0a8f9a1b001234abcd
-
         firstName:
           type: string
           example: Ana
-
         lastName:
           type: string
           example: Perez
-
         email:
           type: string
           format: email
           example: ana@mail.com
-
         role:
           type: string
           enum:
@@ -130,86 +110,169 @@ components:
             - driver
             - store
           example: customer
-
         documents:
           type: array
           items:
             $ref: '#/components/schemas/DocumentMeta'
-
         createdAt:
           type: string
           format: date-time
-
         updatedAt:
           type: string
           format: date-time
 
     PaginatedUsers:
       type: object
-
       properties:
         items:
           type: array
           items:
             $ref: '#/components/schemas/User'
-
         page:
           type: integer
           example: 1
-
         limit:
           type: integer
           example: 10
-
         total:
           type: integer
           example: 25
-
         totalPages:
           type: integer
           example: 3
 
     OrderItem:
       type: object
-
+      required:
+        - name
+        - quantity
+        - price
       properties:
         name:
           type: string
           example: Auriculares Bluetooth
-
         quantity:
           type: integer
+          minimum: 1
           example: 2
-
         price:
           type: number
+          minimum: 0
           example: 1500
+
+    OrderStatusHistoryEntry:
+      type: object
+      properties:
+        from:
+          type: string
+          nullable: true
+          enum:
+            - created
+            - assigned
+            - picked_up
+            - in_transit
+            - delivered
+            - cancelled
+          example: assigned
+        to:
+          type: string
+          enum:
+            - created
+            - assigned
+            - picked_up
+            - in_transit
+            - delivered
+            - cancelled
+          example: in_transit
+        changedBy:
+          type: string
+          nullable: true
+          example: 665f4d0a8f9a1b001234abcd
+        changedByRole:
+          type: string
+          enum:
+            - admin
+            - customer
+            - driver
+            - store
+            - system
+          example: admin
+        source:
+          type: string
+          enum:
+            - order
+            - delivery
+            - system
+          example: order
+        changedAt:
+          type: string
+          format: date-time
+
+    DeliveryStatusHistoryEntry:
+      type: object
+      properties:
+        from:
+          type: string
+          nullable: true
+          enum:
+            - pending
+            - assigned
+            - in_transit
+            - delivered
+            - cancelled
+          example: assigned
+        to:
+          type: string
+          enum:
+            - pending
+            - assigned
+            - in_transit
+            - delivered
+            - cancelled
+          example: in_transit
+        changedBy:
+          type: string
+          nullable: true
+          example: 665f4d0a8f9a1b001234abcd
+        changedByRole:
+          type: string
+          enum:
+            - admin
+            - customer
+            - driver
+            - store
+            - system
+          example: driver
+        source:
+          type: string
+          enum:
+            - order
+            - delivery
+            - system
+          example: delivery
+        changedAt:
+          type: string
+          format: date-time
 
     Order:
       type: object
-
       properties:
         _id:
           type: string
           example: 665f4d0a8f9a1b005678efgh
-
         customer:
           type: string
           example: 665f4d0a8f9a1b001234abcd
-
         items:
           type: array
           items:
             $ref: '#/components/schemas/OrderItem'
-
         deliveryAddress:
           type: string
           example: Av. Siempre Viva 742
-
         total:
           type: number
           example: 3000
-
         status:
           type: string
           enum:
@@ -219,8 +282,7 @@ components:
             - in_transit
             - delivered
             - cancelled
-          example: created
-
+          example: assigned
         priority:
           type: string
           enum:
@@ -228,31 +290,56 @@ components:
             - normal
             - high
           example: normal
-
         delivery:
           type: string
           nullable: true
-
+          example: 665f4d0a8f9a1b009876ijkl
+        statusHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderStatusHistoryEntry'
         receipt:
           $ref: '#/components/schemas/ReceiptMeta'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PaginatedOrders:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+        total:
+          type: integer
+          example: 25
+        totalPages:
+          type: integer
+          example: 3
 
     Delivery:
       type: object
-
       properties:
         _id:
           type: string
           example: 665f4d0a8f9a1b009876ijkl
-
         order:
           type: string
           example: 665f4d0a8f9a1b005678efgh
-
         driver:
           type: string
           nullable: true
           example: 665f4d0a8f9a1b001234mnop
-
         status:
           type: string
           enum:
@@ -260,8 +347,8 @@ components:
             - assigned
             - in_transit
             - delivered
+            - cancelled
           example: assigned
-
         priority:
           type: string
           enum:
@@ -269,16 +356,43 @@ components:
             - normal
             - high
           example: normal
-
         assignedAt:
           type: string
           format: date-time
           nullable: true
-
         deliveredAt:
           type: string
           format: date-time
           nullable: true
-
+        statusHistory:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeliveryStatusHistoryEntry'
         receipt:
           $ref: '#/components/schemas/ReceiptMeta'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PaginatedDeliveries:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Delivery'
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 10
+        total:
+          type: integer
+          example: 25
+        totalPages:
+          type: integer
+          example: 3

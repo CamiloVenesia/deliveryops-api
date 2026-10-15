@@ -1,10 +1,14 @@
-// src/validators/order.schemas.js
-
-import { z } from 'zod';
+import {
+    z
+} from 'zod';
 
 import {
     objectIdSchema
 } from './common.schemas.js';
+
+import {
+    ORDER_STATUSES
+} from '../constants/status.constants.js';
 
 const orderItemSchema =
     z.object({
@@ -38,8 +42,7 @@ const orderItemSchema =
 export const createOrderSchema =
     z.object({
         customer:
-            objectIdSchema
-                .optional(),
+            objectIdSchema.optional(),
 
         items:
             z
@@ -73,14 +76,9 @@ export const createOrderSchema =
 export const updateOrderStatusSchema =
     z.object({
         status:
-            z.enum([
-                'created',
-                'assigned',
-                'picked_up',
-                'in_transit',
-                'delivered',
-                'cancelled'
-            ])
+            z.enum(
+                ORDER_STATUSES
+            )
     });
 
 export const orderIdParamsSchema =

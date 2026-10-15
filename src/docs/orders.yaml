@@ -1,51 +1,25 @@
 paths:
   /api/orders:
     get:
-      summary: Obtener pedidos
-      description: Los administradores pueden consultar todos los pedidos. Los customers solo reciben sus propios pedidos.
       tags:
         - Orders
-
+      summary: Obtener pedidos
+      description: Los administradores pueden consultar todos los pedidos. Los customers solo reciben sus propios pedidos.
       security:
         - BearerAuth: []
-
       responses:
         "200":
           description: Lista paginada de pedidos
           content:
             application/json:
               schema:
-                type: object
-
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Order'
-
-                  page:
-                    type: integer
-                    example: 1
-
-                  limit:
-                    type: integer
-                    example: 10
-
-                  total:
-                    type: integer
-                    example: 25
-
-                  totalPages:
-                    type: integer
-                    example: 3
-
+                $ref: '#/components/schemas/PaginatedOrders'
         "401":
           description: Autenticación requerida
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "403":
           description: El rol autenticado no tiene acceso a pedidos
           content:
@@ -53,55 +27,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-        "500":
-          description: Error interno del servidor
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
     post:
-      summary: Crear un nuevo pedido
-      description: >
-        Disponible para admin y customer.
-        Un customer crea pedidos únicamente para sí mismo.
-        Un admin debe indicar el campo customer.
-
       tags:
         - Orders
-
+      summary: Crear un nuevo pedido
+      description: >
+        Disponible para admin y customer. Un customer crea pedidos únicamente
+        para sí mismo. Un admin debe indicar el campo customer. El pedido se
+        crea con estado created y registra la primera entrada de statusHistory.
       security:
         - BearerAuth: []
-
       requestBody:
         required: true
-
         content:
           application/json:
             schema:
               type: object
-
               required:
                 - items
                 - deliveryAddress
-
               properties:
                 customer:
                   type: string
-                  description: >
-                    ID del cliente. Obligatorio cuando el usuario autenticado
-                    es admin. Un customer no necesita enviarlo.
+                  description: ID del cliente. Obligatorio para admin; un customer no necesita enviarlo.
                   example: 665f4d0a8f9a1b001234abcd
-
                 items:
                   type: array
+                  minItems: 1
                   items:
                     $ref: '#/components/schemas/OrderItem'
-
                 deliveryAddress:
                   type: string
                   example: Av. Siempre Viva 742
-
                 priority:
                   type: string
                   enum:
@@ -109,7 +66,6 @@ paths:
                     - normal
                     - high
                   example: normal
-
       responses:
         "201":
           description: Pedido creado correctamente
@@ -117,40 +73,33 @@ paths:
             application/json:
               schema:
                 type: object
-
                 properties:
                   order:
                     $ref: '#/components/schemas/Order'
-
                   shippingCost:
                     type: number
                     example: 20
-
                   message:
                     type: string
                     example: Pedido creado y email enviado
-
         "400":
-          description: Faltan datos obligatorios
+          description: Datos obligatorios faltantes o inválidos
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "401":
           description: Autenticación requerida
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "403":
           description: Acción no permitida para el usuario autenticado
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "404":
           description: El cliente indicado no existe
           content:
@@ -158,23 +107,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-        "500":
-          description: Error interno del servidor
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
   /api/orders/{oid}:
     get:
-      summary: Obtener un pedido por ID
-      description: Los administradores pueden consultar cualquier pedido. Un customer solo puede consultar sus propios pedidos.
       tags:
         - Orders
-
+      summary: Obtener un pedido por ID
+      description: Los administradores pueden consultar cualquier pedido. Un customer solo puede consultar sus propios pedidos.
       security:
         - BearerAuth: []
-
       parameters:
         - name: oid
           in: path
@@ -182,7 +122,6 @@ paths:
           description: ID del pedido
           schema:
             type: string
-
       responses:
         "200":
           description: Pedido obtenido correctamente
@@ -190,21 +129,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Order'
-
         "401":
           description: Autenticación requerida
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "403":
           description: El usuario no tiene acceso a este pedido
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "404":
           description: Pedido no encontrado
           content:
@@ -212,22 +148,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-        "500":
-          description: Error interno del servidor
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
     delete:
-      summary: Eliminar un pedido
-      description: Solo disponible para administradores.
       tags:
         - Orders
-
+      summary: Eliminar un pedido
+      description: Solo disponible para administradores.
       security:
         - BearerAuth: []
-
       parameters:
         - name: oid
           in: path
@@ -235,38 +162,31 @@ paths:
           description: ID del pedido
           schema:
             type: string
-
       responses:
         "200":
           description: Pedido eliminado correctamente
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponse'
-
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Pedido eliminado
         "401":
           description: Autenticación requerida
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "403":
           description: Solo los administradores pueden eliminar pedidos
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "404":
           description: Pedido no encontrado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-        "500":
-          description: Error interno del servidor
           content:
             application/json:
               schema:
@@ -274,14 +194,29 @@ paths:
 
   /api/orders/{oid}/status:
     patch:
-      summary: Actualizar el estado de un pedido
-      description: Solo disponible para administradores.
       tags:
         - Orders
+      summary: Actualizar el estado de un pedido
+      description: |
+        Solo disponible para administradores.
 
+        La API valida una máquina de estados y rechaza saltos inválidos.
+
+        Transiciones válidas:
+        - created → assigned | cancelled
+        - assigned → picked_up | in_transit | cancelled
+        - picked_up → in_transit | cancelled
+        - in_transit → delivered | cancelled
+        - delivered y cancelled son estados terminales
+
+        Cada cambio agrega una entrada a statusHistory con estado anterior,
+        estado nuevo, actor, rol, origen y fecha.
+
+        Si existe una entrega asociada, los estados assigned, in_transit,
+        delivered y cancelled se sincronizan con la entrega cuando la
+        transición equivalente también es válida.
       security:
         - BearerAuth: []
-
       parameters:
         - name: oid
           in: path
@@ -289,18 +224,14 @@ paths:
           description: ID del pedido
           schema:
             type: string
-
       requestBody:
         required: true
-
         content:
           application/json:
             schema:
               type: object
-
               required:
                 - status
-
               properties:
                 status:
                   type: string
@@ -312,7 +243,6 @@ paths:
                     - delivered
                     - cancelled
                   example: in_transit
-
       responses:
         "200":
           description: Estado actualizado correctamente
@@ -320,44 +250,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Order'
-
         "400":
-          description: El estado es obligatorio
+          description: Estado faltante, inválido o transición no permitida
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
+              examples:
+                invalidTransition:
+                  value:
+                    status: error
+                    error: VALIDATION_ERROR
+                    message: "Transición inválida de pedido: created → in_transit"
         "401":
           description: Autenticación requerida
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "403":
-          description: Solo los administradores pueden modificar el estado
+          description: Solo los administradores pueden modificar el estado de un pedido
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "404":
-          description: Pedido no encontrado
+          description: Pedido o entrega asociada no encontrada
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
         "409":
           description: El pedido ya fue entregado y no puede modificarse
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-        "500":
-          description: Error interno del servidor
           content:
             application/json:
               schema:

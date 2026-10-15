@@ -2,46 +2,65 @@
 
 **Plataforma de gestión de entregas y operaciones logísticas**
 
-DeliveryOps es una API REST desarrollada con Node.js, Express y MongoDB para gestionar usuarios, pedidos, entregas, repartidores, documentos y operaciones logísticas.
+DeliveryOps es una plataforma full stack orientada a la administración de usuarios, pedidos, entregas, repartidores, documentos y operaciones logísticas.
+
+El proyecto está compuesto por dos aplicaciones independientes:
+
+```text
+deliveryops-api
+Backend REST API
+
+deliveryops-web
+Frontend React
+```
 
 ---
 
 # Estado actual
 
-Actualmente DeliveryOps incluye:
+DeliveryOps incluye actualmente:
 
-- Gestión de usuarios.
-- Gestión de pedidos.
-- Gestión de entregas.
-- Gestión básica de productos.
-- Upload de documentos y comprobantes.
-- Paginación.
-- Logging estructurado.
-- Manejo centralizado de errores.
-- Swagger.
-- Docker.
-- Contraseñas con bcrypt.
-- Autenticación JWT.
-- Access Tokens.
-- Refresh Tokens.
-- Cookies HttpOnly.
-- Sesiones persistidas en MongoDB.
-- Refresh Token Rotation.
-- Detección de reutilización de Refresh Tokens.
-- Logout y revocación de sesiones.
-- RBAC.
-- Control de ownership.
-- Validación de requests con Zod.
-- Helmet.
-- CORS configurable.
-- Rate limiting.
-- Límites de payload.
-- Tests automatizados.
+- gestión de usuarios;
+- gestión de pedidos;
+- gestión de entregas;
+- gestión básica de productos;
+- uploads de documentos;
+- uploads de comprobantes;
+- paginación;
+- logging estructurado;
+- manejo centralizado de errores;
+- Swagger / OpenAPI;
+- Docker;
+- passwords con bcrypt;
+- autenticación JWT;
+- Access Tokens;
+- Refresh Tokens;
+- cookies HttpOnly;
+- sesiones persistidas en MongoDB;
+- Refresh Token Rotation;
+- detección de reutilización de Refresh Tokens;
+- logout y revocación de sesiones;
+- RBAC;
+- ownership;
+- validación de requests con Zod;
+- Helmet;
+- CORS configurable;
+- rate limiting;
+- límites de payload;
+- máquina de estados para pedidos;
+- máquina de estados para entregas;
+- historial de estados;
+- registro del actor de cada cambio;
+- sincronización de estados entre pedidos y entregas;
+- cancelación de operaciones;
+- eliminación segura de asignaciones;
+- frontend React integrado;
+- tests automatizados.
 
-Estado actual:
+Estado de la suite:
 
 ```text
-70 tests passing
+87 passing
 ```
 
 ---
@@ -56,7 +75,7 @@ Estado actual:
 
 ## Base de datos
 
-- MongoDB 7
+- MongoDB
 - Mongoose 8
 
 ## Seguridad
@@ -69,6 +88,7 @@ Estado actual:
 - express-rate-limit
 - CORS configurable
 - RBAC
+- ownership
 
 ## Testing
 
@@ -82,6 +102,7 @@ Estado actual:
 - Swagger
 - swagger-jsdoc
 - swagger-ui-express
+- OpenAPI 3
 
 ## Logging
 
@@ -97,11 +118,22 @@ Estado actual:
 - Docker
 - Docker Compose
 
+## Frontend
+
+- React
+- Vite
+- React Router
+- Axios
+- TanStack Query
+- Recharts
+- Lucide React
+- date-fns
+
 ---
 
-# Arquitectura
+# Arquitectura backend
 
-DeliveryOps utiliza:
+DeliveryOps utiliza la siguiente arquitectura:
 
 ```text
 Router
@@ -123,10 +155,11 @@ Esto permite separar:
 - autenticación;
 - autorización;
 - validación;
-- controladores;
+- controllers;
 - reglas de negocio;
 - acceso a datos;
-- modelos.
+- modelos;
+- documentación.
 
 ---
 
@@ -147,6 +180,13 @@ src/
 ├── validators/
 ├── app.js
 └── server.js
+```
+
+Scripts administrativos:
+
+```text
+scripts/
+└── create-admin.js
 ```
 
 Tests:
@@ -230,7 +270,13 @@ Desarrollo:
 npm run dev
 ```
 
-Testing:
+Producción:
+
+```bash
+npm start
+```
+
+Tests:
 
 ```bash
 npm test
@@ -239,14 +285,41 @@ npm test
 Estado actual:
 
 ```text
-70 passing
+87 passing
 ```
+
+---
+
+# Crear administrador inicial
+
+DeliveryOps incluye una herramienta administrativa para crear un usuario con rol `admin`.
+
+Ejecutar:
+
+```bash
+npm run create:admin
+```
+
+El script solicita:
+
+```text
+Nombre
+Apellido
+Email
+Password
+```
+
+La contraseña se almacena hasheada utilizando bcrypt.
+
+El script no sobrescribe un usuario existente con el mismo email.
+
+Esta herramienta está pensada para bootstrap administrativo y no expone una ruta HTTP pública para crear administradores.
 
 ---
 
 # Docker
 
-Validar:
+Validar configuración:
 
 ```bash
 docker compose config
@@ -291,9 +364,9 @@ Refresh Token
 
 ---
 
-## Access Token
+# Access Token
 
-Duración:
+Duración configurada por defecto:
 
 ```text
 15 minutos
@@ -305,7 +378,7 @@ Se envía mediante:
 Authorization: Bearer ACCESS_TOKEN
 ```
 
-Incluye:
+Incluye información como:
 
 ```text
 sub
@@ -318,9 +391,9 @@ exp
 
 ---
 
-## Refresh Token
+# Refresh Token
 
-Duración:
+Duración configurada por defecto:
 
 ```text
 7 días
@@ -338,13 +411,15 @@ como cookie:
 HttpOnly
 ```
 
-El Refresh Token nunca se devuelve en el body.
+El Refresh Token no se devuelve en el body.
 
 ---
 
 # Sesiones
 
 Cada login crea una sesión persistida en MongoDB.
+
+La sesión contiene información como:
 
 ```text
 user
@@ -359,7 +434,7 @@ ipAddress
 
 El Refresh Token original no se almacena.
 
-Se almacena:
+Se persiste:
 
 ```text
 SHA-256(refreshToken)
@@ -368,6 +443,8 @@ SHA-256(refreshToken)
 ---
 
 # Refresh Token Rotation
+
+Flujo:
 
 ```text
 Refresh Token A
@@ -379,25 +456,25 @@ Token A revocado
 Refresh Token B
 ```
 
-Si se reutiliza un token revocado:
+Si se reutiliza un Refresh Token ya revocado:
 
 ```text
 REFRESH_TOKEN_REUSED
 ```
 
-las sesiones activas asociadas son revocadas.
+las sesiones relacionadas son revocadas.
 
 ---
 
 # RBAC
 
-DeliveryOps implementa:
+DeliveryOps utiliza:
 
 ```text
 Role-Based Access Control
 ```
 
-Roles:
+Roles disponibles:
 
 ```text
 admin
@@ -406,7 +483,7 @@ driver
 store
 ```
 
-`store` está preparado para una expansión funcional posterior.
+El rol `store` está preparado para una futura expansión funcional.
 
 ---
 
@@ -422,15 +499,14 @@ Puede:
 - gestionar documentos;
 - consultar pedidos;
 - crear pedidos;
-- modificar pedidos;
+- modificar estados de pedidos;
 - eliminar pedidos;
 - consultar entregas;
 - crear entregas;
 - modificar entregas;
-- eliminar entregas;
-- cargar comprobantes.
-
----
+- eliminar entregas permitidas;
+- cargar comprobantes;
+- consultar historial operativo.
 
 ## Customer
 
@@ -442,25 +518,31 @@ Puede:
 - crear pedidos para sí mismo;
 - consultar sus pedidos;
 - cargar comprobantes en sus pedidos;
-- consultar entregas asociadas a sus pedidos.
+- consultar entregas correspondientes a sus pedidos.
 
----
+No puede modificar estados operativos.
 
 ## Driver
 
 Puede:
 
 - consultar sus entregas;
-- actualizar sus entregas;
-- cargar comprobantes de sus entregas.
+- modificar el estado de sus entregas asignadas;
+- cargar comprobantes;
+- consultar su información operativa.
 
-No puede acceder a entregas asignadas a otros drivers.
+No puede:
+
+- modificar entregas de otros drivers;
+- eliminar entregas;
+- crear pedidos;
+- crear entregas.
 
 ---
 
 # Ownership
 
-DeliveryOps también verifica propiedad del recurso.
+Además de RBAC, DeliveryOps verifica propiedad del recurso.
 
 Ejemplo:
 
@@ -482,7 +564,313 @@ Pedido A
 403 FORBIDDEN
 ```
 
-El mismo principio se aplica a drivers y entregas.
+La misma regla se aplica a drivers y entregas.
+
+---
+
+# Máquina de estados de pedidos
+
+Estados disponibles:
+
+```text
+created
+assigned
+picked_up
+in_transit
+delivered
+cancelled
+```
+
+Transiciones válidas:
+
+```text
+created
+├── assigned
+└── cancelled
+
+assigned
+├── picked_up
+├── in_transit
+└── cancelled
+
+picked_up
+├── in_transit
+└── cancelled
+
+in_transit
+├── delivered
+└── cancelled
+```
+
+Estados terminales:
+
+```text
+delivered
+cancelled
+```
+
+Una transición como:
+
+```text
+created → in_transit
+```
+
+es rechazada.
+
+También se rechaza:
+
+```text
+assigned → delivered
+```
+
+porque la operación debe pasar primero por un estado operativo compatible.
+
+---
+
+# Máquina de estados de entregas
+
+Estados disponibles:
+
+```text
+pending
+assigned
+in_transit
+delivered
+cancelled
+```
+
+Transiciones válidas:
+
+```text
+pending
+├── assigned
+└── cancelled
+
+assigned
+├── in_transit
+└── cancelled
+
+in_transit
+├── delivered
+└── cancelled
+```
+
+Estados terminales:
+
+```text
+delivered
+cancelled
+```
+
+Ejemplo válido:
+
+```text
+assigned
+    ↓
+in_transit
+    ↓
+delivered
+```
+
+Ejemplo inválido:
+
+```text
+assigned
+    ↓
+delivered
+```
+
+---
+
+# Historial de estados
+
+Pedidos y entregas almacenan:
+
+```text
+statusHistory
+```
+
+Cada entrada contiene:
+
+```text
+from
+to
+changedBy
+changedByRole
+source
+changedAt
+```
+
+Ejemplo conceptual:
+
+```json
+{
+  "from": "assigned",
+  "to": "in_transit",
+  "changedBy": "665f4d0a8f9a1b001234abcd",
+  "changedByRole": "driver",
+  "source": "delivery",
+  "changedAt": "2026-10-15T12:00:00.000Z"
+}
+```
+
+Esto permite reconstruir quién realizó cada cambio y desde qué recurso se originó.
+
+---
+
+# Source del historial
+
+`source` identifica qué recurso originó el cambio:
+
+```text
+order
+delivery
+system
+```
+
+Ejemplo:
+
+```text
+Driver actualiza entrega
+        ↓
+Delivery: assigned → in_transit
+        ↓
+Pedido sincronizado
+        ↓
+Order: assigned → in_transit
+```
+
+El historial del pedido indica:
+
+```text
+source: delivery
+```
+
+---
+
+# Sincronización pedido ↔ entrega
+
+DeliveryOps mantiene sincronizados los estados operativos compatibles.
+
+Desde una entrega:
+
+```text
+Entrega assigned
+    ↓
+Pedido assigned
+```
+
+```text
+Entrega in_transit
+    ↓
+Pedido in_transit
+```
+
+```text
+Entrega delivered
+    ↓
+Pedido delivered
+```
+
+```text
+Entrega cancelled
+    ↓
+Pedido cancelled
+```
+
+También existe sincronización desde el pedido hacia una entrega asociada para estados compatibles.
+
+Antes de modificar ambos documentos se valida que las transiciones sean válidas.
+
+---
+
+# Asignación de entregas
+
+Una entrega se crea asociando:
+
+```text
+Pedido
++
+Driver
+```
+
+Cuando se crea correctamente:
+
+```text
+Delivery.status = assigned
+Order.status = assigned
+```
+
+También se registra:
+
+```text
+assignedAt
+```
+
+y ambas entidades reciben entradas de historial.
+
+Un pedido no puede tener más de una entrega activa asociada.
+
+---
+
+# Eliminación segura de entregas
+
+Una entrega solamente puede eliminarse si está en:
+
+```text
+pending
+assigned
+```
+
+No puede eliminarse cuando está:
+
+```text
+in_transit
+delivered
+cancelled
+```
+
+Si se elimina una entrega asignada:
+
+```text
+Delivery eliminada
+        ↓
+Order.delivery = null
+        ↓
+Order.status = created
+```
+
+El rollback también queda registrado en:
+
+```text
+statusHistory
+```
+
+con origen:
+
+```text
+delivery
+```
+
+---
+
+# Cancelación
+
+Pedidos y entregas soportan:
+
+```text
+cancelled
+```
+
+La cancelación es terminal.
+
+Una vez cancelado un recurso no puede volver al flujo normal.
+
+Cuando se cancela una entrega asociada, el pedido también pasa a:
+
+```text
+cancelled
+```
 
 ---
 
@@ -493,8 +881,6 @@ DeliveryOps utiliza:
 ```text
 Zod
 ```
-
-Las validaciones se ejecutan antes de llegar al controller.
 
 Flujo:
 
@@ -508,14 +894,14 @@ Middleware validate
 Controller
 ```
 
-Actualmente se validan:
+Se validan, entre otros:
 
 - login;
 - creación de usuarios;
 - emails;
 - passwords;
 - roles;
-- IDs MongoDB;
+- ObjectIds;
 - creación de pedidos;
 - items;
 - cantidades;
@@ -567,7 +953,7 @@ Los orígenes permitidos se controlan mediante:
 CORS_ORIGINS=http://localhost:5173
 ```
 
-Se pueden configurar múltiples orígenes separados por coma.
+Pueden configurarse múltiples orígenes separados por coma.
 
 Ejemplo:
 
@@ -581,7 +967,7 @@ La API utiliza:
 credentials: true
 ```
 
-para permitir cookies HttpOnly desde el frontend autorizado.
+para permitir cookies HttpOnly desde frontends autorizados.
 
 ---
 
@@ -606,7 +992,7 @@ Autenticación:
 AUTH_RATE_LIMIT_MAX=30
 ```
 
-Las rutas de autenticación tienen un límite más estricto.
+Las rutas de autenticación utilizan un límite más estricto.
 
 Respuesta:
 
@@ -618,13 +1004,13 @@ Respuesta:
 }
 ```
 
-Durante testing se utiliza un límite elevado para evitar interferencias con la suite automatizada.
+Durante testing se utiliza una configuración que evita interferencias con la suite automatizada.
 
 ---
 
 # Payload limits
 
-Los requests JSON y URL encoded tienen actualmente un límite de:
+Los requests JSON y URL encoded tienen un límite de:
 
 ```text
 1 MB
@@ -714,13 +1100,13 @@ Products todavía utiliza:
 Router → Service → Model
 ```
 
-Pendiente de normalización.
+y queda pendiente su normalización completa con la arquitectura principal.
 
 ---
 
 # Swagger
 
-Disponible en:
+Disponible localmente en:
 
 ```text
 http://localhost:3000/api/docs
@@ -728,17 +1114,37 @@ http://localhost:3000/api/docs
 
 Swagger está protegido mediante Basic Auth.
 
-Los endpoints JWT utilizan:
+Credenciales configuradas mediante:
+
+```env
+BASIC_AUTH_USER
+BASIC_AUTH_PASSWORD
+```
+
+Los endpoints protegidos de la API utilizan:
 
 ```text
 BearerAuth
 ```
 
+La documentación OpenAPI incluye:
+
+- autenticación;
+- usuarios;
+- pedidos;
+- entregas;
+- uploads;
+- estados;
+- historial;
+- sincronización;
+- errores;
+- permisos.
+
 ---
 
 # Seguridad implementada
 
-Actualmente DeliveryOps cuenta con:
+DeliveryOps cuenta actualmente con:
 
 - bcrypt;
 - passwords ocultas;
@@ -765,13 +1171,16 @@ Actualmente DeliveryOps cuenta con:
 
 # Testing
 
-La suite actual verifica:
+La suite verifica:
 
 - usuarios;
 - hashing;
 - autenticación;
+- login;
 - refresh;
 - logout;
+- rotación de Refresh Tokens;
+- reutilización de Refresh Tokens;
 - RBAC;
 - ownership;
 - pedidos;
@@ -780,13 +1189,94 @@ La suite actual verifica:
 - mocks;
 - logging;
 - Swagger;
-- rutas inexistentes.
+- rutas inexistentes;
+- máquina de estados;
+- transiciones válidas;
+- transiciones inválidas;
+- estados terminales;
+- cancelación;
+- historial de estados;
+- actor de cambios;
+- origen de cambios;
+- sincronización pedido-entrega;
+- eliminación segura de entregas;
+- rollback de asignaciones.
 
-Estado:
+Estado actual:
 
 ```text
-70 passing
+87 passing
 ```
+
+---
+
+# Frontend
+
+El frontend se encuentra en un repositorio independiente:
+
+```text
+deliveryops-web
+```
+
+Tecnologías:
+
+```text
+React
+Vite
+React Router
+Axios
+TanStack Query
+Recharts
+Lucide React
+date-fns
+```
+
+Actualmente incluye:
+
+- login;
+- sesión persistente mediante refresh;
+- rutas protegidas;
+- RBAC visual;
+- sidebar;
+- dashboard;
+- pedidos;
+- entregas;
+- usuarios;
+- perfil;
+- uploads;
+- estados;
+- responsive layout;
+- lazy loading por rutas;
+- code splitting.
+
+El frontend consume:
+
+```text
+http://localhost:3000/api
+```
+
+durante desarrollo local.
+
+---
+
+# Estado del frontend
+
+Validaciones actuales:
+
+```text
+npm run lint
+0 errores
+0 warnings
+```
+
+Build:
+
+```text
+npm run build
+SUCCESS
+```
+
+Las páginas principales se compilan en chunks independientes mediante lazy loading.
 
 ---
 
@@ -796,39 +1286,34 @@ Estado:
 
 ### Completado
 
-- Arquitectura backend.
-- MongoDB.
-- Users.
-- Orders.
-- Deliveries.
-- Uploads.
-- Logging.
-- Swagger.
-- Docker.
-- bcrypt.
-- JWT.
-- Refresh Tokens.
-- Sesiones.
-- RBAC.
-- Ownership.
-- Zod.
-- Helmet.
-- CORS.
-- Rate limiting.
+- arquitectura backend;
+- MongoDB;
+- users;
+- orders;
+- deliveries;
+- uploads;
+- logging;
+- Swagger;
+- Docker;
+- bcrypt;
+- JWT;
+- Refresh Tokens;
+- sesiones;
+- RBAC;
+- ownership;
+- Zod;
+- Helmet;
+- CORS;
+- rate limiting;
+- hardening de API.
 
 ---
 
-# Fase 2 — Frontend
+## Fase 2 — Frontend base
 
-## Próximo bloque
+### Completado
 
-```text
-DeliveryOps Web
-React + Vite
-```
-
-Se desarrollará:
-
+- React + Vite;
 - login;
 - layout principal;
 - sidebar;
@@ -837,41 +1322,57 @@ Se desarrollará:
 - usuarios;
 - pedidos;
 - entregas;
-- estados;
 - perfil;
 - logout;
-- integración con JWT;
+- integración JWT;
 - refresh automático;
-- diseño responsive.
+- diseño responsive;
+- lazy loading;
+- code splitting.
 
 ---
 
-# Fase 3 — Operaciones logísticas avanzadas
+## Fase 3 — Operaciones logísticas avanzadas
 
-- Máquina de estados.
-- Historial de estados.
-- Asignación avanzada.
-- Tracking.
-- Costos.
-- Reportes.
-- Proof of Delivery.
-- Notificaciones.
-- Email.
-- WhatsApp.
-- Mapas.
+### Completado
+
+- máquina de estados;
+- historial de estados;
+- sincronización pedido-entrega;
+- cancelación;
+- actor de cambios;
+- rollback seguro de asignaciones.
+
+### Próximos bloques
+
+- timeline visual de operaciones;
+- detalle completo de pedido;
+- detalle completo de entrega;
+- asignación avanzada;
+- tracking;
+- costos;
+- reportes;
+- Proof of Delivery mejorado;
+- notificaciones;
+- email;
+- WhatsApp;
+- mapas;
+- funcionalidades operativas para `store`.
 
 ---
 
-# Fase 4 — Producción
+## Fase 4 — Producción
 
-- CI/CD.
-- Deploy.
-- Versionado.
-- Seeds.
-- Postman.
-- Monitoring.
-- Gestión de secretos.
-- Auditoría de dependencias.
+Pendiente:
+
+- CI/CD;
+- deploy;
+- versionado;
+- seeds de producción/demo;
+- colección Postman;
+- monitoring;
+- gestión de secretos;
+- auditoría controlada de dependencias.
 
 ---
 
@@ -880,7 +1381,8 @@ Se desarrollará:
 ```text
 DeliveryOps API
 
-70 tests passing
+Tests:
+87 PASSING
 
 Authentication:
 COMPLETED
@@ -899,13 +1401,30 @@ COMPLETED
 
 API Hardening:
 COMPLETED
+
+State Machine:
+COMPLETED
+
+Status History:
+COMPLETED
+
+Order ↔ Delivery Sync:
+COMPLETED
+
+DeliveryOps Web:
+BASE COMPLETED
 ```
 
 Próxima etapa:
 
 ```text
-DELIVERYOPS WEB
-React + Vite
+OPERATIONS UI
+
+Timeline visual
++
+Detalle completo de pedidos
++
+Detalle completo de entregas
 ```
 
 ---

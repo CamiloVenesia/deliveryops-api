@@ -1,9 +1,29 @@
-// src/services/order.service.js
+import {
+    orderRepository
+} from '../repositories/order.repository.js';
 
-import { orderRepository } from '../repositories/order.repository.js';
-import { userRepository } from '../repositories/user.repository.js';
-import { customError } from '../utils/customError.js';
-import { ERROR_CODES } from '../constants/error.constants.js';
+import {
+    deliveryRepository
+} from '../repositories/delivery.repository.js';
+
+import {
+    userRepository
+} from '../repositories/user.repository.js';
+
+import {
+    customError
+} from '../utils/customError.js';
+
+import {
+    ERROR_CODES
+} from '../constants/error.constants.js';
+
+import {
+    DELIVERY_STATUS_TRANSITIONS,
+    ORDER_STATUS_TRANSITIONS,
+    ORDER_TO_DELIVERY_STATUS
+} from '../constants/status.constants.js';
+
 import logger from '../utils/logger.js';
 
 function validateOrderAccess(
@@ -11,13 +31,150 @@ function validateOrderAccess(
     actor
 ) {
     if (
-        actor.role === 'customer' &&
-        order.customer.toString() !== actor.id
+        actor.role ===
+            'customer' &&
+        order.customer.toString() !==
+            actor.id
     ) {
         throw new customError(
             ERROR_CODES.FORBIDDEN
         );
     }
+}
+
+function historyEntry(
+    from,
+    to,
+    actor,
+    source =
+        'order'
+) {
+    return {
+        from,
+        to,
+
+        changedBy:
+            actor?.id ??
+            null,
+
+        changedByRole:
+            actor?.role ??
+            'system',
+
+        source,
+
+        changedAt:
+            new Date()
+    };
+}
+
+function validateTransition(
+    transitions,
+    from,
+    to,
+    entityLabel
+) {
+    if (
+        from ===
+        to
+    ) {
+        return;
+    }
+
+    const allowed =
+        transitions[
+            from
+        ] ??
+        [];
+
+    if (
+        !allowed.includes(
+            to
+        )
+    ) {
+        throw new customError(
+            ERROR_CODES.VALIDATION_ERROR,
+            `Transición inválida de ${entityLabel}: ${from} → ${to}`
+        );
+    }
+}
+
+async function prepareLinkedDeliverySync(
+    order,
+    nextOrderStatus,
+    actor
+) {
+    const nextDeliveryStatus =
+        ORDER_TO_DELIVERY_STATUS[
+            nextOrderStatus
+        ];
+
+    if (
+        !nextDeliveryStatus ||
+        !order.delivery
+    ) {
+        return null;
+    }
+
+    const delivery =
+        await deliveryRepository.findById(
+            order.delivery
+        );
+
+    if (!delivery) {
+        throw new customError(
+            ERROR_CODES.DELIVERY_NOT_FOUND,
+            'El pedido referencia una entrega inexistente'
+        );
+    }
+
+    if (
+        delivery.status ===
+        nextDeliveryStatus
+    ) {
+        return delivery;
+    }
+
+    validateTransition(
+        DELIVERY_STATUS_TRANSITIONS,
+        delivery.status,
+        nextDeliveryStatus,
+        'entrega'
+    );
+
+    const previousStatus =
+        delivery.status;
+
+    delivery.status =
+        nextDeliveryStatus;
+
+    delivery.statusHistory.push(
+        historyEntry(
+            previousStatus,
+            nextDeliveryStatus,
+            actor,
+            'order'
+        )
+    );
+
+    if (
+        nextDeliveryStatus ===
+            'assigned' &&
+        !delivery.assignedAt
+    ) {
+        delivery.assignedAt =
+            new Date();
+    }
+
+    if (
+        nextDeliveryStatus ===
+        'delivered'
+    ) {
+        delivery.deliveredAt =
+            new Date();
+    }
+
+    return delivery;
 }
 
 export const orderService = {
@@ -32,7 +189,11 @@ export const orderService = {
         const pageNum =
             Math.max(
                 1,
-                parseInt(page, 10) || 1
+                parseInt(
+                    page,
+                    10
+                ) ||
+                    1
             );
 
         const limitNum =
@@ -40,26 +201,37 @@ export const orderService = {
                 50,
                 Math.max(
                     1,
-                    parseInt(limit, 10) || 10
+                    parseInt(
+                        limit,
+                        10
+                    ) ||
+                        10
                 )
             );
 
         const filter =
-            actor.role === 'customer'
+            actor.role ===
+            'customer'
                 ? {
-                    customer:
-                        actor.id
-                }
+                      customer:
+                          actor.id
+                  }
                 : {};
 
-        const [items, total] =
+        const [
+            items,
+            total
+        ] =
             await Promise.all([
                 orderRepository.findAll({
                     skip:
-                        (pageNum - 1) *
+                        (pageNum -
+                            1) *
                         limitNum,
+
                     limit:
                         limitNum,
+
                     filter
                 }),
 
@@ -70,13 +242,16 @@ export const orderService = {
 
         return {
             items,
-            page: pageNum,
-            limit: limitNum,
+            page:
+                pageNum,
+            limit:
+                limitNum,
             total,
+
             totalPages:
                 Math.ceil(
                     total /
-                    limitNum
+                        limitNum
                 )
         };
     },
@@ -86,8 +261,9 @@ export const orderService = {
         actor
     ) {
         const order =
-            await orderRepository
-                .findById(oid);
+            await orderRepository.findById(
+                oid
+            );
 
         if (!order) {
             throw new customError(
@@ -121,7 +297,8 @@ export const orderService = {
         ) {
             if (
                 customer &&
-                customer !== actor.id
+                customer !==
+                    actor.id
             ) {
                 throw new customError(
                     ERROR_CODES.FORBIDDEN
@@ -141,7 +318,8 @@ export const orderService = {
 
         if (
             !items ||
-            items.length === 0
+            items.length ===
+                0
         ) {
             throw new customError(
                 ERROR_CODES.VALIDATION_ERROR,
@@ -149,7 +327,9 @@ export const orderService = {
             );
         }
 
-        if (!deliveryAddress) {
+        if (
+            !deliveryAddress
+        ) {
             throw new customError(
                 ERROR_CODES.VALIDATION_ERROR,
                 'Falta la dirección de entrega'
@@ -168,7 +348,8 @@ export const orderService = {
         }
 
         if (
-            user.role === 'driver'
+            user.role ===
+            'driver'
         ) {
             throw new customError(
                 ERROR_CODES.FORBIDDEN,
@@ -179,12 +360,12 @@ export const orderService = {
         const total =
             items.reduce(
                 (
-                    acc,
+                    accumulator,
                     item
                 ) =>
-                    acc +
+                    accumulator +
                     item.price *
-                    item.quantity,
+                        item.quantity,
                 0
             );
 
@@ -192,14 +373,28 @@ export const orderService = {
             await orderRepository.create({
                 customer:
                     customerId,
+
                 items,
+
                 deliveryAddress,
+
                 total,
+
                 priority:
                     priority ||
                     'normal',
+
                 status:
-                    'created'
+                    'created',
+
+                statusHistory: [
+                    historyEntry(
+                        null,
+                        'created',
+                        actor,
+                        'order'
+                    )
+                ]
             });
 
         logger.info(
@@ -217,24 +412,27 @@ export const orderService = {
         const shippingCost =
             newOrder.items.reduce(
                 (
-                    acc,
+                    accumulator,
                     item
                 ) =>
-                    acc +
+                    accumulator +
                     item.quantity *
-                    10,
+                        10,
                 0
             );
 
         return {
-            order: newOrder,
+            order:
+                newOrder,
+
             shippingCost
         };
     },
 
     async updateStatus(
         oid,
-        status
+        status,
+        actor
     ) {
         if (!status) {
             throw new customError(
@@ -244,13 +442,21 @@ export const orderService = {
         }
 
         const order =
-            await orderRepository
-                .findById(oid);
+            await orderRepository.findById(
+                oid
+            );
 
         if (!order) {
             throw new customError(
                 ERROR_CODES.ORDER_NOT_FOUND
             );
+        }
+
+        if (
+            order.status ===
+                status
+        ) {
+            return order;
         }
 
         if (
@@ -262,24 +468,69 @@ export const orderService = {
             );
         }
 
+        validateTransition(
+            ORDER_STATUS_TRANSITIONS,
+            order.status,
+            status,
+            'pedido'
+        );
+
+        const linkedDelivery =
+            await prepareLinkedDeliverySync(
+                order,
+                status,
+                actor
+            );
+
+        const previousStatus =
+            order.status;
+
         order.status =
             status;
 
-        await orderRepository.save(
-            order
+        order.statusHistory.push(
+            historyEntry(
+                previousStatus,
+                status,
+                actor,
+                'order'
+            )
+        );
+
+        const saveOperations = [
+            orderRepository.save(
+                order
+            )
+        ];
+
+        if (
+            linkedDelivery
+        ) {
+            saveOperations.push(
+                deliveryRepository.save(
+                    linkedDelivery
+                )
+            );
+        }
+
+        await Promise.all(
+            saveOperations
         );
 
         logger.info(
-            `Pedido ${order._id} actualizado a estado: ${status}`
+            `Pedido ${order._id} actualizado de ${previousStatus} a ${status}`
         );
 
         return order;
     },
 
-    async remove(oid) {
+    async remove(
+        oid
+    ) {
         const order =
-            await orderRepository
-                .deleteById(oid);
+            await orderRepository.deleteById(
+                oid
+            );
 
         if (!order) {
             throw new customError(
@@ -303,8 +554,9 @@ export const orderService = {
         }
 
         const order =
-            await orderRepository
-                .findById(oid);
+            await orderRepository.findById(
+                oid
+            );
 
         if (!order) {
             throw new customError(
@@ -320,14 +572,19 @@ export const orderService = {
         order.receipt = {
             originalName:
                 file.originalname,
+
             generatedName:
                 file.filename,
+
             path:
                 file.path,
+
             mimetype:
                 file.mimetype,
+
             size:
                 file.size,
+
             uploadedAt:
                 new Date()
         };

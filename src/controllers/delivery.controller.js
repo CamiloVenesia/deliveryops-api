@@ -1,52 +1,75 @@
-// src/controllers/delivery.controller.js
-
-import { deliveryService } from '../services/delivery.service.js';
+import {
+    deliveryService
+} from '../services/delivery.service.js';
 
 export const deliveryController = {
 
-    async getAll(req, res) {
+    async getAll(
+        req,
+        res
+    ) {
         const result =
             await deliveryService.getAll(
                 req.query,
                 req.user
             );
 
-        res.json(result);
+        res.json(
+            result
+        );
     },
 
-    async getById(req, res) {
+    async getById(
+        req,
+        res
+    ) {
         const delivery =
             await deliveryService.getById(
                 req.params.did,
                 req.user
             );
 
-        res.json(delivery);
+        res.json(
+            delivery
+        );
     },
 
-    async create(req, res) {
+    async create(
+        req,
+        res
+    ) {
         const {
             order,
             driver,
             priority
-        } = req.body;
+        } =
+            req.body;
 
         const newDelivery =
-            await deliveryService.create({
-                order,
-                driver,
-                priority
-            });
+            await deliveryService.create(
+                {
+                    order,
+                    driver,
+                    priority
+                },
+                req.user
+            );
 
-        res.status(201).json(
+        res.status(
+            201
+        ).json(
             newDelivery
         );
     },
 
-    async updateStatus(req, res) {
+    async updateStatus(
+        req,
+        res
+    ) {
         const {
             status
-        } = req.body;
+        } =
+            req.body;
 
         const delivery =
             await deliveryService.updateStatus(
@@ -55,12 +78,18 @@ export const deliveryController = {
                 req.user
             );
 
-        res.json(delivery);
+        res.json(
+            delivery
+        );
     },
 
-    async remove(req, res) {
+    async remove(
+        req,
+        res
+    ) {
         await deliveryService.remove(
-            req.params.did
+            req.params.did,
+            req.user
         );
 
         res.json({
@@ -69,7 +98,10 @@ export const deliveryController = {
         });
     },
 
-    async addReceipt(req, res) {
+    async addReceipt(
+        req,
+        res
+    ) {
         const delivery =
             await deliveryService.addReceipt(
                 req.params.did,
@@ -77,7 +109,9 @@ export const deliveryController = {
                 req.user
             );
 
-        res.status(201).json(
+        res.status(
+            201
+        ).json(
             delivery
         );
     }
