@@ -1,215 +1,627 @@
 import mongoose from 'mongoose';
 
 import {
-    DELIVERY_STATUSES
-} from '../constants/status.constants.js';
+  CURRENCIES,
+  DELIVERY_ATTEMPT_OUTCOMES,
+  DELIVERY_STATUSES,
+  LOCATION_SOURCES,
+  NOTIFICATION_CHANNELS,
+  NOTIFICATION_STATUSES,
+  PRIORITY_LEVELS,
+  STATUS_HISTORY_ROLES,
+  STATUS_HISTORY_SOURCES,
+  VEHICLE_TYPES
+} from '../constants/logistics.constants.js';
+
+const coordinateSchema =
+  new mongoose.Schema(
+    {
+      latitude: {
+        type: Number,
+        min: -90,
+        max: 90,
+        required: true
+      },
+
+      longitude: {
+        type: Number,
+        min: -180,
+        max: 180,
+        required: true
+      },
+
+      address: {
+        type: String,
+        trim: true,
+        default: null
+      }
+    },
+    {
+      _id: false
+    }
+  );
+
+const locationHistorySchema =
+  new mongoose.Schema(
+    {
+      latitude: {
+        type: Number,
+        min: -90,
+        max: 90,
+        required: true
+      },
+
+      longitude: {
+        type: Number,
+        min: -180,
+        max: 180,
+        required: true
+      },
+
+      accuracyMeters: {
+        type: Number,
+        min: 0,
+        default: null
+      },
+
+      speedKph: {
+        type: Number,
+        min: 0,
+        default: null
+      },
+
+      heading: {
+        type: Number,
+        min: 0,
+        max: 360,
+        default: null
+      },
+
+      source: {
+        type: String,
+        enum: LOCATION_SOURCES,
+        default: 'gps'
+      },
+
+      recordedAt: {
+        type: Date,
+        default: Date.now
+      }
+    },
+    {
+      _id: false
+    }
+  );
+
+const routeSchema =
+  new mongoose.Schema(
+    {
+      origin: {
+        type: coordinateSchema,
+        default: null
+      },
+
+      destination: {
+        type: coordinateSchema,
+        default: null
+      },
+
+      distanceKm: {
+        type: Number,
+        min: 0,
+        default: null
+      },
+
+      estimatedDurationMinutes: {
+        type: Number,
+        min: 0,
+        default: null
+      },
+
+      polyline: {
+        type: String,
+        default: null
+      },
+
+      calculatedAt: {
+        type: Date,
+        default: null
+      }
+    },
+    {
+      _id: false
+    }
+  );
+
+const proofOfDeliverySchema =
+  new mongoose.Schema(
+    {
+      receivedBy: {
+        type: String,
+        trim: true,
+        default: null
+      },
+
+      documentNumber: {
+        type: String,
+        trim: true,
+        default: null
+      },
+
+      relationship: {
+        type: String,
+        trim: true,
+        default: null
+      },
+
+      signatureUrl: {
+        type: String,
+        default: null
+      },
+
+      photoUrls: {
+        type: [String],
+        default: []
+      },
+
+      notes: {
+        type: String,
+        trim: true,
+        default: null
+      },
+
+      latitude: {
+        type: Number,
+        min: -90,
+        max: 90,
+        default: null
+      },
+
+      longitude: {
+        type: Number,
+        min: -180,
+        max: 180,
+        default: null
+      },
+
+      receivedAt: {
+        type: Date,
+        default: null
+      }
+    },
+    {
+      _id: false
+    }
+  );
+
+const deliveryCostSchema =
+  new mongoose.Schema(
+    {
+      currency: {
+        type: String,
+        enum: CURRENCIES,
+        default: 'ARS'
+      },
+
+      plannedCost: {
+        type: Number,
+        min: 0,
+        default: 0
+      },
+
+      fuelCost: {
+        type: Number,
+        min: 0,
+        default: 0
+      },
+
+      tollCost: {
+        type: Number,
+        min: 0,
+        default: 0
+      },
+
+      additionalCost: {
+        type: Number,
+        min: 0,
+        default: 0
+      },
+
+      totalActualCost: {
+        type: Number,
+        min: 0,
+        default: 0
+      }
+    },
+    {
+      _id: false
+    }
+  );
+
+const vehicleSchema =
+  new mongoose.Schema(
+    {
+      type: {
+        type: String,
+        enum: VEHICLE_TYPES,
+        default: null
+      },
+
+      plate: {
+        type: String,
+        uppercase: true,
+        trim: true,
+        default: null
+      },
+
+      description: {
+        type: String,
+        trim: true,
+        default: null
+      }
+    },
+    {
+      _id: false
+    }
+  );
+
+const deliveryAttemptSchema =
+  new mongoose.Schema(
+    {
+      attemptedAt: {
+        type: Date,
+        default: Date.now
+      },
+
+      outcome: {
+        type: String,
+        enum: DELIVERY_ATTEMPT_OUTCOMES,
+        required: true
+      },
+
+      notes: {
+        type: String,
+        trim: true,
+        default: null
+      },
+
+      latitude: {
+        type: Number,
+        min: -90,
+        max: 90,
+        default: null
+      },
+
+      longitude: {
+        type: Number,
+        min: -180,
+        max: 180,
+        default: null
+      }
+    },
+    {
+      _id: false
+    }
+  );
 
 const statusHistorySchema =
-    new mongoose.Schema(
-        {
-            from: {
-                type:
-                    String,
+  new mongoose.Schema(
+    {
+      from: {
+        type: String,
+        enum: DELIVERY_STATUSES,
+        default: null
+      },
 
-                enum: [
-                    ...DELIVERY_STATUSES,
-                    null
-                ],
+      to: {
+        type: String,
+        enum: DELIVERY_STATUSES,
+        required: true
+      },
 
-                default:
-                    null
-            },
+      changedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+      },
 
-            to: {
-                type:
-                    String,
+      changedByRole: {
+        type: String,
+        enum: STATUS_HISTORY_ROLES,
+        default: 'system'
+      },
 
-                enum:
-                    DELIVERY_STATUSES,
+      source: {
+        type: String,
+        enum: STATUS_HISTORY_SOURCES,
+        default: 'system'
+      },
 
-                required:
-                    true
-            },
+      changedAt: {
+        type: Date,
+        default: Date.now
+      },
 
-            changedBy: {
-                type:
-                    mongoose.Schema.Types.ObjectId,
+      note: {
+        type: String,
+        trim: true,
+        default: null
+      }
+    },
+    {
+      _id: false
+    }
+  );
 
-                ref:
-                    'User',
+const notificationSchema =
+  new mongoose.Schema(
+    {
+      channel: {
+        type: String,
+        enum: NOTIFICATION_CHANNELS,
+        required: true
+      },
 
-                default:
-                    null
-            },
+      event: {
+        type: String,
+        required: true,
+        trim: true
+      },
 
-            changedByRole: {
-                type:
-                    String,
+      recipient: {
+        type: String,
+        trim: true
+      },
 
-                enum: [
-                    'admin',
-                    'customer',
-                    'driver',
-                    'store',
-                    'system'
-                ],
+      status: {
+        type: String,
+        enum: NOTIFICATION_STATUSES,
+        default: 'pending'
+      },
 
-                default:
-                    'system'
-            },
+      providerMessageId: {
+        type: String,
+        default: null
+      },
 
-            source: {
-                type:
-                    String,
+      error: {
+        type: String,
+        default: null
+      },
 
-                enum: [
-                    'order',
-                    'delivery',
-                    'system'
-                ],
+      sentAt: {
+        type: Date,
+        default: null
+      },
 
-                default:
-                    'delivery'
-            },
+      createdAt: {
+        type: Date,
+        default: Date.now
+      }
+    },
+    {
+      _id: false
+    }
+  );
 
-            changedAt: {
-                type:
-                    Date,
+const receiptSchema =
+  new mongoose.Schema(
+    {
+      originalName: {
+        type: String
+      },
 
-                default:
-                    Date.now
-            }
-        },
-        {
-            _id:
-                false
-        }
-    );
+      generatedName: {
+        type: String
+      },
+
+      path: {
+        type: String
+      },
+
+      mimetype: {
+        type: String
+      },
+
+      size: {
+        type: Number
+      },
+
+      uploadedAt: {
+        type: Date
+      }
+    },
+    {
+      _id: false
+    }
+  );
 
 const deliverySchema =
-    new mongoose.Schema(
-        {
-            order: {
-                type:
-                    mongoose.Schema.Types.ObjectId,
+  new mongoose.Schema(
+    {
+      trackingCode: {
+        type: String,
+        trim: true,
+        uppercase: true,
+        unique: true,
+        sparse: true
+      },
 
-                ref:
-                    'Order',
+      order: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Order',
+        required: [true, 'El pedido es obligatorio']
+      },
 
-                required: [
-                    true,
-                    'El pedido es obligatorio'
-                ]
-            },
+      driver: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+      },
 
-            driver: {
-                type:
-                    mongoose.Schema.Types.ObjectId,
+      originDepot: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Depot',
+        default: null
+      },
 
-                ref:
-                    'User',
+      status: {
+        type: String,
+        enum: DELIVERY_STATUSES,
+        default: 'pending'
+      },
 
-                default:
-                    null
-            },
+      priority: {
+        type: String,
+        enum: PRIORITY_LEVELS,
+        default: 'normal'
+      },
 
-            status: {
-                type:
-                    String,
+      vehicle: {
+        type: vehicleSchema,
+        default: null
+      },
 
-                enum:
-                    DELIVERY_STATUSES,
+      route: {
+        type: routeSchema,
+        default: null
+      },
 
-                default:
-                    'pending'
-            },
+      currentLocation: {
+        type: coordinateSchema,
+        default: null
+      },
 
-            priority: {
-                type:
-                    String,
+      locationHistory: {
+        type: [locationHistorySchema],
+        default: []
+      },
 
-                enum: [
-                    'low',
-                    'normal',
-                    'high'
-                ],
+      proofOfDelivery: {
+        type: proofOfDeliverySchema,
+        default: null
+      },
 
-                default:
-                    'normal'
-            },
+      deliveryAttempts: {
+        type: [deliveryAttemptSchema],
+        default: []
+      },
 
-            assignedAt: {
-                type:
-                    Date,
+      costs: {
+        type: deliveryCostSchema,
+        default: null
+      },
 
-                default:
-                    null
-            },
+      assignedAt: {
+        type: Date,
+        default: null
+      },
 
-            deliveredAt: {
-                type:
-                    Date,
+      pickedUpAt: {
+        type: Date,
+        default: null
+      },
 
-                default:
-                    null
-            },
+      inTransitAt: {
+        type: Date,
+        default: null
+      },
 
-            statusHistory: {
-                type: [
-                    statusHistorySchema
-                ],
+      deliveredAt: {
+        type: Date,
+        default: null
+      },
 
-                default:
-                    []
-            },
+      cancelledAt: {
+        type: Date,
+        default: null
+      },
 
-            receipt: {
-                type: {
-                    originalName: {
-                        type:
-                            String
-                    },
+      estimatedDeliveryAt: {
+        type: Date,
+        default: null
+      },
 
-                    generatedName: {
-                        type:
-                            String
-                    },
+      cancellationReason: {
+        type: String,
+        trim: true,
+        default: null
+      },
 
-                    path: {
-                        type:
-                            String
-                    },
+      driverNotes: {
+        type: String,
+        trim: true,
+        default: null
+      },
 
-                    mimetype: {
-                        type:
-                            String
-                    },
+      statusHistory: {
+        type: [statusHistorySchema],
+        default: []
+      },
 
-                    size: {
-                        type:
-                            Number
-                    },
+      notifications: {
+        type: [notificationSchema],
+        default: []
+      },
 
-                    uploadedAt: {
-                        type:
-                            Date
-                    }
-                },
+      receipt: {
+        type: receiptSchema,
+        default: null
+      },
 
-                default:
-                    null
-            }
+      metrics: {
+        distanceKm: {
+          type: Number,
+          min: 0,
+          default: null
         },
-        {
-            timestamps:
-                true
+
+        estimatedDurationMinutes: {
+          type: Number,
+          min: 0,
+          default: null
+        },
+
+        actualDurationMinutes: {
+          type: Number,
+          min: 0,
+          default: null
+        },
+
+        waitingMinutes: {
+          type: Number,
+          min: 0,
+          default: null
         }
-    );
+      }
+    },
+    {
+      timestamps: true
+    }
+  );
+
+deliverySchema.index({
+  driver: 1,
+  status: 1
+});
+
+deliverySchema.index({
+  order: 1
+});
+
+deliverySchema.index({
+  originDepot: 1,
+  status: 1
+});
+
+deliverySchema.index({
+  createdAt: -1
+});
 
 const Delivery =
-    mongoose.model(
-        'Delivery',
-        deliverySchema
-    );
+  mongoose.model(
+    'Delivery',
+    deliverySchema
+  );
 
 export default Delivery;
