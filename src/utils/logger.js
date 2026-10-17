@@ -1,4 +1,3 @@
-// src/utils/logger.js
 
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
@@ -27,61 +26,71 @@ winston.addColors(customLevels.colors);
 
 const isProduction = config.nodeEnv === 'production';
 
-const consoleFormat = winston.format.combine(
+const messageFormat = winston.format.printf(
+    ({ timestamp, level, message, stack }) => {
+        const text = stack || message;
+
+        return `${timestamp} [${level}] ${text}`;
+    }
+);
+
+const productionFormat = winston.format.combine(
+    winston.format.errors({ stack: true }),
+    winston.format.timestamp({
+        format: 'YYYY-MM-DD HH:mm:ss'
+    }),
+    messageFormat
+);
+
+const developmentFormat = winston.format.combine(
+    winston.format.errors({ stack: true }),
     winston.format.colorize({ all: true }),
-    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    winston.format.printf(({ timestamp, level, message }) => {
-        return `${timestamp} [${level}]\t${message}`;
-    })
+    winston.format.timestamp({
+        format: 'YYYY-MM-DD HH:mm:ss'
+    }),
+    messageFormat
 );
 
-const fileFormat = winston.format.combine(
-    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    winston.format.printf(({ timestamp, level, message }) => {
-        return `${timestamp} [${level}] ${message}`;
+const transports = [
+    new winston.transports.Console({
+        level: config.logLevel || 'info',
+        format: isProduction
+            ? productionFormat
+            : developmentFormat
     })
-);
+];
 
-const transports = [];
-
-// Consola: SOLO en desarrollo (y test, para no perder feedback al debuggear tests).
-// En producción, la salida por consola queda completamente desactivada.
+// En desarrollo mantenemos archivos de log locales.
+// En producción, Render recibe los logs mediante stdout/stderr.
 if (!isProduction) {
     transports.push(
-        new winston.transports.Console({
-            level: 'debug',
-            format: consoleFormat
+        new DailyRotateFile({
+            level: 'info',
+            dirname: 'logs',
+            filename: 'combined-%DATE%.log',
+            datePattern: 'YYYY-MM-DD',
+            maxFiles: '14d',
+            format: productionFormat
+        })
+    );
+
+    transports.push(
+        new DailyRotateFile({
+            level: 'error',
+            dirname: 'logs',
+            filename: 'error-%DATE%.log',
+            datePattern: 'YYYY-MM-DD',
+            maxFiles: '14d',
+            format: productionFormat
         })
     );
 }
 
-// combined.log: TODA la actividad (info en adelante), con rotación diaria.
-transports.push(
-    new DailyRotateFile({
-        level: 'info',
-        dirname: 'logs',
-        filename: 'combined-%DATE%.log',
-        datePattern: 'YYYY-MM-DD',
-        maxFiles: '14d',
-        format: fileFormat
-    })
-);
-
-// error.log: SOLO error y fatal, con rotación diaria.
-transports.push(
-    new DailyRotateFile({
-        level: 'error',
-        dirname: 'logs',
-        filename: 'error-%DATE%.log',
-        datePattern: 'YYYY-MM-DD',
-        maxFiles: '14d',
-        format: fileFormat
-    })
-);
-
 const logger = winston.createLogger({
     levels: customLevels.levels,
-    transports
+    level: config.logLevel || 'info',
+    transports,
+    exitOnError: false
 });
 
 export default logger;
