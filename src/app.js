@@ -11,6 +11,7 @@ import loggerTestRouter from './routes/logger.routes.js';
 import ordersRouter from './routes/orders.routes.js';
 import deliveriesRouter from './routes/deliveries.routes.js';
 import depotsRouter from './routes/depots.routes.js';
+import analyticsRouter from './routes/analytics.routes.js';
 import productsRouter from './routes/products.routes.js';
 import mocksRouter from './routes/mocks.routes.js';
 import healthRouter from './routes/health.routes.js';
@@ -54,7 +55,6 @@ app.use(
         new Error('Origen no permitido por CORS')
       );
     },
-
     credentials: true
   })
 );
@@ -69,7 +69,6 @@ app.use(
 );
 
 app.use(cookieParser());
-
 app.use(apiRateLimiter);
 
 app.use('/api/health', healthRouter);
@@ -102,11 +101,11 @@ app.use(
 );
 
 app.use('/api/orders', ordersRouter);
-
 app.use('/api/deliveries', deliveriesRouter);
-
-// Gestión logística de depósitos.
 app.use('/api/depots', depotsRouter);
+
+// Estadísticas para el dashboard administrativo.
+app.use('/api/analytics', analyticsRouter);
 
 app.use('/api/products', productsRouter);
 

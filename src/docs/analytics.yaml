@@ -1,0 +1,114 @@
+
+paths:
+  /api/analytics/dashboard:
+    get:
+      tags:
+        - Analytics
+      summary: Estadísticas generales del dashboard
+      description: |
+        Devuelve indicadores operativos, costos, tasas de
+        entrega, tendencia diaria y pedidos recientes.
+
+        Acceso exclusivo para administradores.
+
+        Las fechas y los agrupamientos diarios utilizan UTC.
+
+        La tasa de entrega se calcula sobre pedidos
+        finalizados: entregados / (entregados + cancelados).
+
+        Los valores monetarios se agrupan por moneda,
+        sin convertir entre ARS, USD y BRL.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: days
+          in: query
+          required: false
+          description: Días de tendencia, entre 1 y 90
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 90
+            default: 14
+      responses:
+        '200':
+          description: Métricas obtenidas correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  generatedAt:
+                    type: string
+                    format: date-time
+                  period:
+                    type: object
+                  overview:
+                    type: object
+                    properties:
+                      ordersTotal:
+                        type: integer
+                      ordersToday:
+                        type: integer
+                      ordersActive:
+                        type: integer
+                      ordersInTransit:
+                        type: integer
+                      ordersDelivered:
+                        type: integer
+                      ordersCancelled:
+                        type: integer
+                      deliveriesTotal:
+                        type: integer
+                      deliveriesActive:
+                        type: integer
+                      deliveriesInTransit:
+                        type: integer
+                      deliveriesDelivered:
+                        type: integer
+                      driversActive:
+                        type: integer
+                      depotsActive:
+                        type: integer
+                      deliveryRate:
+                        type: number
+                        nullable: true
+                      averageDeliveryMinutes:
+                        type: number
+                        nullable: true
+                  finances:
+                    type: object
+                    properties:
+                      shippingRevenueByCurrency:
+                        type: object
+                        additionalProperties:
+                          type: number
+                      deliveryCostsByCurrency:
+                        type: object
+                        additionalProperties:
+                          type: number
+                  activity:
+                    type: object
+                    properties:
+                      daily:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            date:
+                              type: string
+                              format: date
+                            orders:
+                              type: integer
+                            deliveriesCompleted:
+                              type: integer
+                      recentOrders:
+                        type: array
+                        items:
+                          type: object
+        '400':
+          description: Período inválido
+        '401':
+          description: Autenticación requerida
+        '403':
+          description: Acceso exclusivo para administradores
