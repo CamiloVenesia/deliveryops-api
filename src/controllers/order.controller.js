@@ -1,126 +1,72 @@
+
+import { orderService } from '../services/order.service.js';
+
 import {
-    orderService
-} from '../services/order.service.js';
+  orderCreationService
+} from '../services/order-creation.service.js';
 
 export const orderController = {
+  async getAll(req, res) {
+    const result = await orderService.getAll(
+      req.query,
+      req.user
+    );
 
-    async getAll(
-        req,
-        res
-    ) {
-        const result =
-            await orderService.getAll(
-                req.query,
-                req.user
-            );
+    res.json(result);
+  },
 
-        res.json(
-            result
-        );
-    },
+  async getById(req, res) {
+    const order = await orderService.getById(
+      req.params.oid,
+      req.user
+    );
 
-    async getById(
-        req,
-        res
-    ) {
-        const order =
-            await orderService.getById(
-                req.params.oid,
-                req.user
-            );
+    res.json(order);
+  },
 
-        res.json(
-            order
-        );
-    },
+  async create(req, res) {
+    const {
+      order,
+      shippingCost
+    } = await orderCreationService.create(
+      req.body,
+      req.user
+    );
 
-    async create(
-        req,
-        res
-    ) {
-        const {
-            customer,
-            items,
-            deliveryAddress,
-            priority
-        } =
-            req.body;
+    res.status(201).json({
+      order,
+      shippingCost,
+      message: 'Pedido creado y email enviado'
+    });
+  },
 
-        const {
-            order,
-            shippingCost
-        } =
-            await orderService.create(
-                {
-                    customer,
-                    items,
-                    deliveryAddress,
-                    priority
-                },
-                req.user
-            );
+  async updateStatus(req, res) {
+    const { status } = req.body;
 
-        res.status(
-            201
-        ).json({
-            order,
-            shippingCost,
+    const order = await orderService.updateStatus(
+      req.params.oid,
+      status,
+      req.user
+    );
 
-            message:
-                'Pedido creado y email enviado'
-        });
-    },
+    res.json(order);
+  },
 
-    async updateStatus(
-        req,
-        res
-    ) {
-        const {
-            status
-        } =
-            req.body;
+  async remove(req, res) {
+    await orderService.remove(req.params.oid);
 
-        const order =
-            await orderService.updateStatus(
-                req.params.oid,
-                status,
-                req.user
-            );
+    res.json({
+      message: 'Pedido eliminado'
+    });
+  },
 
-        res.json(
-            order
-        );
-    },
+  async addReceipt(req, res) {
+    const order = await orderService.addReceipt(
+      req.params.oid,
+      req.file,
+      req.user
+    );
 
-    async remove(
-        req,
-        res
-    ) {
-        await orderService.remove(
-            req.params.oid
-        );
-
-        res.json({
-            message:
-                'Pedido eliminado'
-        });
-    },
-
-    async addReceipt(
-        req,
-        res
-    ) {
-        const order =
-            await orderService.addReceipt(
-                req.params.oid,
-                req.file,
-                req.user
-            );
-
-        res.status(
-            201
-        ).json(
-            order
-        );
-    }
+    res.status(201).json(order);
+  }
 };

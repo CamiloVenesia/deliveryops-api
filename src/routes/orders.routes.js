@@ -1,8 +1,11 @@
-// src/routes/orders.routes.js
 
 import { Router } from 'express';
 
 import { orderController } from '../controllers/order.controller.js';
+
+import {
+  orderLogisticsController
+} from '../controllers/order-logistics.controller.js';
 
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -15,114 +18,87 @@ import { authenticate } from '../middleware/authenticate.js';
 import { authorizeRoles } from '../middleware/authorizeRoles.js';
 
 import {
-    validateBody,
-    validateParams
+  validateBody,
+  validateParams
 } from '../middleware/validate.js';
 
 import {
-    createOrderSchema,
-    updateOrderStatusSchema,
-    orderIdParamsSchema
+  createOrderSchema,
+  updateOrderStatusSchema,
+  updateOrderLogisticsSchema,
+  orderIdParamsSchema
 } from '../validators/order.schemas.js';
 
 const router = Router();
 
-const receiptUploader =
-    createUploader(
-        'orders/receipts'
-    );
-
-router.get(
-    '/',
-    authenticate,
-    authorizeRoles(
-        'admin',
-        'customer'
-    ),
-    asyncHandler(
-        orderController.getAll
-    )
+const receiptUploader = createUploader(
+  'orders/receipts'
 );
 
 router.get(
-    '/:oid',
-    authenticate,
-    authorizeRoles(
-        'admin',
-        'customer'
-    ),
-    validateParams(
-        orderIdParamsSchema
-    ),
-    asyncHandler(
-        orderController.getById
-    )
+  '/',
+  authenticate,
+  authorizeRoles('admin', 'customer'),
+  asyncHandler(orderController.getAll)
+);
+
+router.get(
+  '/:oid',
+  authenticate,
+  authorizeRoles('admin', 'customer'),
+  validateParams(orderIdParamsSchema),
+  asyncHandler(orderController.getById)
+);
+
+router.get(
+  '/:oid/logistics',
+  authenticate,
+  authorizeRoles('admin', 'customer'),
+  validateParams(orderIdParamsSchema),
+  asyncHandler(orderLogisticsController.getDetails)
 );
 
 router.post(
-    '/',
-    authenticate,
-    authorizeRoles(
-        'admin',
-        'customer'
-    ),
-    validateBody(
-        createOrderSchema
-    ),
-    asyncHandler(
-        orderController.create
-    )
+  '/',
+  authenticate,
+  authorizeRoles('admin', 'customer'),
+  validateBody(createOrderSchema),
+  asyncHandler(orderController.create)
 );
 
 router.patch(
-    '/:oid/status',
-    authenticate,
-    authorizeRoles(
-        'admin'
-    ),
-    validateParams(
-        orderIdParamsSchema
-    ),
-    validateBody(
-        updateOrderStatusSchema
-    ),
-    asyncHandler(
-        orderController.updateStatus
-    )
+  '/:oid/logistics',
+  authenticate,
+  authorizeRoles('admin'),
+  validateParams(orderIdParamsSchema),
+  validateBody(updateOrderLogisticsSchema),
+  asyncHandler(orderLogisticsController.update)
+);
+
+router.patch(
+  '/:oid/status',
+  authenticate,
+  authorizeRoles('admin'),
+  validateParams(orderIdParamsSchema),
+  validateBody(updateOrderStatusSchema),
+  asyncHandler(orderController.updateStatus)
 );
 
 router.delete(
-    '/:oid',
-    authenticate,
-    authorizeRoles(
-        'admin'
-    ),
-    validateParams(
-        orderIdParamsSchema
-    ),
-    asyncHandler(
-        orderController.remove
-    )
+  '/:oid',
+  authenticate,
+  authorizeRoles('admin'),
+  validateParams(orderIdParamsSchema),
+  asyncHandler(orderController.remove)
 );
 
 router.post(
-    '/:oid/receipt',
-    authenticate,
-    authorizeRoles(
-        'admin',
-        'customer'
-    ),
-    validateParams(
-        orderIdParamsSchema
-    ),
-    handleUpload(
-        receiptUploader.single(
-            'receipt'
-        )
-    ),
-    asyncHandler(
-        orderController.addReceipt
-    )
+  '/:oid/receipt',
+  authenticate,
+  authorizeRoles('admin', 'customer'),
+  validateParams(orderIdParamsSchema),
+  handleUpload(receiptUploader.single('receipt')),
+  asyncHandler(orderController.addReceipt)
 );
 
 export default router;

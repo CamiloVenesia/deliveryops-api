@@ -1,0 +1,454 @@
+
+components:
+  schemas:
+    LogisticsCoordinates:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+
+    Depot:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        code:
+          type: string
+        active:
+          type: boolean
+        address:
+          type: object
+          properties:
+            street:
+              type: string
+            number:
+              type: string
+            city:
+              type: string
+            province:
+              type: string
+            postalCode:
+              type: string
+            country:
+              type: string
+            latitude:
+              type: number
+            longitude:
+              type: number
+        contact:
+          type: object
+          properties:
+            name:
+              type: string
+            email:
+              type: string
+            phone:
+              type: string
+        serviceAreas:
+          type: array
+          items:
+            type: string
+        maxDailyDeliveries:
+          type: integer
+
+    LogisticsError:
+      type: object
+      properties:
+        status:
+          type: string
+          example: error
+        error:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+
+paths:
+  /api/depots:
+    get:
+      tags: [Depots]
+      summary: Listar depósitos
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: active
+          schema:
+            type: string
+            enum: ['true', 'false']
+      responses:
+        '200':
+          description: Listado paginado de depósitos
+        '401':
+          description: Autenticación requerida
+        '403':
+          description: Acceso denegado
+
+    post:
+      tags: [Depots]
+      summary: Crear depósito
+      description: Solo administradores.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, code, address]
+              properties:
+                name:
+                  type: string
+                code:
+                  type: string
+                address:
+                  type: object
+                  required: [street, number, city, province]
+                  properties:
+                    street:
+                      type: string
+                    number:
+                      type: string
+                    city:
+                      type: string
+                    province:
+                      type: string
+                contact:
+                  type: object
+                active:
+                  type: boolean
+      responses:
+        '201':
+          description: Depósito creado
+        '400':
+          description: Datos inválidos o código duplicado
+        '403':
+          description: Acceso denegado
+
+  /api/depots/{did}:
+    parameters:
+      - in: path
+        name: did
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Depots]
+      summary: Consultar depósito
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Información del depósito
+        '403':
+          description: Acceso denegado
+    patch:
+      tags: [Depots]
+      summary: Actualizar depósito
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Depósito actualizado
+        '400':
+          description: Datos inválidos
+    delete:
+      tags: [Depots]
+      summary: Eliminar o desactivar depósito
+      description: Si tiene operaciones relacionadas, se desactiva.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Resultado de eliminación o desactivación
+
+  /api/orders/{oid}/logistics:
+    parameters:
+      - in: path
+        name: oid
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Logistics]
+      summary: Consultar información logística de un pedido
+      description: Administrador o cliente propietario.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Detalle del pedido
+        '403':
+          description: Acceso denegado
+        '404':
+          description: Pedido inexistente
+    patch:
+      tags: [Logistics]
+      summary: Actualizar logística del pedido
+      description: Solo administrador y pedido sin asignar.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recipient:
+                  type: object
+                  properties:
+                    fullName:
+                      type: string
+                    phone:
+                      type: string
+                    email:
+                      type: string
+                deliveryAddress:
+                  type: string
+                deliveryAddressDetails:
+                  type: object
+                deliveryInstructions:
+                  type: string
+                packageInfo:
+                  type: object
+                originDepot:
+                  type: string
+                  nullable: true
+                shippingCost:
+                  type: object
+      responses:
+        '200':
+          description: Datos actualizados
+        '400':
+          description: Datos inválidos o pedido ya asignado
+        '403':
+          description: Acceso denegado
+
+  /api/deliveries/{did}/logistics:
+    parameters:
+      - in: path
+        name: did
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Logistics]
+      summary: Consultar entrega con información del pedido
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Entrega y pedido asociado
+        '403':
+          description: Acceso denegado
+    patch:
+      tags: [Logistics]
+      summary: Actualizar datos operativos
+      description: Solo administradores.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                originDepot:
+                  type: string
+                priority:
+                  type: string
+                  enum: [low, normal, high]
+                vehicle:
+                  type: object
+                route:
+                  type: object
+                costs:
+                  type: object
+                driverNotes:
+                  type: string
+      responses:
+        '200':
+          description: Datos operativos actualizados
+        '400':
+          description: Datos inválidos
+
+  /api/deliveries/{did}/locations:
+    parameters:
+      - in: path
+        name: did
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Tracking]
+      summary: Consultar historial de ubicaciones GPS
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Ubicación actual e historial
+        '403':
+          description: Acceso denegado
+    post:
+      tags: [Tracking]
+      summary: Registrar ubicación GPS
+      description: Administrador o repartidor asignado.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/LogisticsCoordinates'
+                - type: object
+                  properties:
+                    accuracyMeters:
+                      type: number
+                    speedKph:
+                      type: number
+                    heading:
+                      type: number
+                    source:
+                      type: string
+                      enum: [gps, manual, system]
+      responses:
+        '201':
+          description: Ubicación registrada
+        '400':
+          description: Coordenadas inválidas o estado incompatible
+        '403':
+          description: Acceso denegado
+
+  /api/deliveries/{did}/proof:
+    parameters:
+      - in: path
+        name: did
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Tracking]
+      summary: Consultar comprobante de entrega
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Datos del comprobante
+    post:
+      tags: [Tracking]
+      summary: Registrar Proof of Delivery
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [receivedBy]
+              properties:
+                receivedBy:
+                  type: string
+                documentNumber:
+                  type: string
+                relationship:
+                  type: string
+                signatureUrl:
+                  type: string
+                photoUrls:
+                  type: array
+                  items:
+                    type: string
+                notes:
+                  type: string
+      responses:
+        '201':
+          description: Comprobante registrado
+        '400':
+          description: Estado incompatible o comprobante duplicado
+
+  /api/deliveries/{did}/attempts:
+    parameters:
+      - in: path
+        name: did
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Tracking]
+      summary: Consultar intentos de entrega
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Historial de intentos
+    post:
+      tags: [Tracking]
+      summary: Registrar un intento de entrega
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome]
+              properties:
+                outcome:
+                  type: string
+                  enum:
+                    - delivered
+                    - recipient_absent
+                    - rejected
+                    - invalid_address
+                    - access_problem
+                    - rescheduled
+                    - other
+                notes:
+                  type: string
+                latitude:
+                  type: number
+                longitude:
+                  type: number
+      responses:
+        '201':
+          description: Intento registrado
+        '400':
+          description: Datos inválidos o estado incompatible
