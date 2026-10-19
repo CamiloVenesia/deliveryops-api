@@ -425,83 +425,63 @@ describe('Uploads API', () => {
         () => {
 
             it('debería permitir que el driver asignado cargue un comprobante', async () => {
-                const customer =
-                    await createUserAndLogin(
-                        'customer'
-                    );
+                const customer = await createUserAndLogin('customer');
+                const driver = await createUserAndLogin('driver');
 
-                const driver =
-                    await createUserAndLogin(
-                        'driver'
-                    );
+                const order = await Order.create({
+                    customer: customer.user._id,
+                    items: [{ name: 'Test', quantity: 1, price: 100 }],
+                    deliveryAddress: 'Calle Falsa 123',
+                    total: 100,
+                    status: 'in_transit'
+                });
 
-                const order =
-                    await Order.create({
-                        customer:
-                            customer.user._id,
+                const delivery = await Delivery.create({
+                    order: order._id,
+                    driver: driver.user._id,
+                    status: 'in_transit'
+                });
 
-                        items: [
-                            {
-                                name:
-                                    'Test',
-                                quantity: 1,
-                                price: 100
-                            }
-                        ],
+                // Imagen PNG real de 1x1 píxel.
+                // El nuevo servicio comprueba la firma binaria.
+                const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/BXcAAAAASUVORK5CYII=', 'base64');
 
-                        deliveryAddress:
-                            'Calle Falsa 123',
-
-                        total: 100,
-
-                        status:
-                            'assigned'
+                const response = await request(app)
+                    .post(`/api/deliveries/${delivery._id}/receipt`)
+                    .set('Authorization', `Bearer ${driver.accessToken}`)
+                    .attach('receipt', png, {
+                        filename: 'comprobante.png',
+                        contentType: 'image/png'
                     });
 
-                const delivery =
-                    await Delivery.create({
-                        order:
-                            order._id,
+                expect(response.status).to.equal(201);
 
-                        driver:
-                            driver.user._id,
-
-                        status:
-                            'assigned'
-                    });
-
-                const response =
-                    await request(app)
-                        .post(
-                            `/api/deliveries/${delivery._id}/receipt`
-                        )
-                        .set(
-                            'Authorization',
-                            `Bearer ${driver.accessToken}`
-                        )
-                        .attach(
-                            'receipt',
-                            Buffer.from(
-                                'comprobante'
-                            ),
-                            {
-                                filename:
-                                    'comprobante.png',
-                                contentType:
-                                    'image/png'
-                            }
-                        );
-
-                expect(
-                    response.status
-                ).to.equal(201);
-
-                expect(
-                    response.body.receipt
-                ).to.have.property(
-                    'originalName',
-                    'comprobante.png'
+                expect(response.body.receipt).to.have.property(
+                    'originalName', 'comprobante.png'
                 );
+
+                expect(response.body.receipt.path).to.match(
+                    /^gridfs:[a-f0-9]{24}$/
+                );
+
+                // Verifica que se puede recuperar el archivo.
+                const download = await request(app)
+                    .get(`/api/deliveries/${delivery._id}/receipt`)
+                    .set('Authorization', `Bearer ${driver.accessToken}`);
+
+                expect(download.status).to.equal(200);
+
+                expect(
+                    download.headers['content-type']
+                ).to.include('image/png');
+
+                expect(download.body).to.deep.equal(png);
+
+                // Verifica que el archivo no sea público.
+                const anonymous = await request(app)
+                    .get(`/api/deliveries/${delivery._id}/receipt`);
+
+                expect(anonymous.status).to.equal(401);
             });
 
             it('debería responder 404 si la entrega no existe', async () => {

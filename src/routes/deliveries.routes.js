@@ -1,7 +1,10 @@
 
 import { Router } from 'express';
+import multer from 'multer';
 
-import { deliveryController } from '../controllers/delivery.controller.js';
+import {
+  deliveryController
+} from '../controllers/delivery.controller.js';
 
 import {
   deliveryLogisticsController
@@ -11,12 +14,17 @@ import {
   deliveryAttemptsController
 } from '../controllers/delivery-attempts.controller.js';
 
-import { asyncHandler } from '../utils/asyncHandler.js';
-import { createUploader } from '../config/multer.config.js';
-import { handleUpload } from '../middleware/handleUpload.js';
+import {
+  deliveryReceiptController
+} from '../controllers/delivery-receipt.controller.js';
 
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { handleUpload } from '../middleware/handleUpload.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { authorizeRoles } from '../middleware/authorizeRoles.js';
+
+import { customError } from '../utils/customError.js';
+import { ERROR_CODES } from '../constants/error.constants.js';
 
 import {
   validateBody,
@@ -38,8 +46,33 @@ import {
 
 const router = Router();
 
-const receiptUploader = createUploader('deliveries/receipts');
+const allowedReceiptTypes = [
+  'image/jpeg',
+  'image/png',
+  'application/pdf'
+];
 
+const receiptUploader = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+    files: 1
+  },
+  fileFilter: (_req, file, callback) => {
+    if (!allowedReceiptTypes.includes(file.mimetype)) {
+      return callback(
+        new customError(
+          ERROR_CODES.INVALID_FILE_TYPE,
+          'Formato no permitido. Utilizá JPG, PNG o PDF.'
+        )
+      );
+    }
+
+    callback(null, true);
+  }
+});
+
+// Todas las rutas de entregas requieren autenticación.
 router.use(authenticate);
 
 // Listado y detalle
@@ -88,7 +121,7 @@ router.post(
   asyncHandler(deliveryLogisticsController.registerLocation)
 );
 
-// Prueba de entrega
+// Comprobante estructurado
 router.get(
   '/:did/proof',
   authorizeRoles('admin', 'customer', 'driver'),
@@ -104,7 +137,7 @@ router.post(
   asyncHandler(deliveryLogisticsController.registerProof)
 );
 
-// Intentos de entrega
+// Intentos e incidencias
 router.get(
   '/:did/attempts',
   authorizeRoles('admin', 'driver'),
@@ -120,7 +153,7 @@ router.post(
   asyncHandler(deliveryAttemptsController.register)
 );
 
-// Operaciones anteriores
+// Crear entrega
 router.post(
   '/',
   authorizeRoles('admin'),
@@ -128,6 +161,7 @@ router.post(
   asyncHandler(deliveryController.create)
 );
 
+// Actualizar estado
 router.patch(
   '/:did/status',
   authorizeRoles('admin', 'driver'),
@@ -136,6 +170,7 @@ router.patch(
   asyncHandler(deliveryController.updateStatus)
 );
 
+// Eliminar entrega
 router.delete(
   '/:did',
   authorizeRoles('admin'),
@@ -143,12 +178,23 @@ router.delete(
   asyncHandler(deliveryController.remove)
 );
 
+// Guardar comprobante en MongoDB GridFS
 router.post(
   '/:did/receipt',
   authorizeRoles('admin', 'driver'),
   validateParams(deliveryIdParamsSchema),
   handleUpload(receiptUploader.single('receipt')),
-  asyncHandler(deliveryController.addReceipt)
+  asyncHandler(deliveryReceiptController.upload)
+);
+
+// Consultar o descargar comprobante guardado.
+// GET /api/deliveries/:did/receipt
+// GET /api/deliveries/:did/receipt?download=1
+router.get(
+  '/:did/receipt',
+  authorizeRoles('admin', 'customer', 'driver'),
+  validateParams(deliveryIdParamsSchema),
+  asyncHandler(deliveryReceiptController.download)
 );
 
 export default router;
