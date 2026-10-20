@@ -16,19 +16,36 @@ import analyticsRouter from './routes/analytics.routes.js';
 import productsRouter from './routes/products.routes.js';
 import mocksRouter from './routes/mocks.routes.js';
 import healthRouter from './routes/health.routes.js';
+import notificationsRouter from './routes/notifications.routes.js';
 
-import { errorHandler } from './middleware/errorHandler.js';
-import { basicAuth } from './middleware/basicAuth.js';
+import {
+    errorHandler
+} from './middleware/errorHandler.js';
+
+import {
+    basicAuth
+} from './middleware/basicAuth.js';
 
 import {
     apiRateLimiter,
     authRateLimiter
 } from './middleware/rateLimiters.js';
 
-import { customError } from './utils/customError.js';
-import { ERROR_CODES } from './constants/error.constants.js';
-import { swaggerSpec } from './docs/swagger.config.js';
-import { config } from './config/env.js';
+import {
+    customError
+} from './utils/customError.js';
+
+import {
+    ERROR_CODES
+} from './constants/error.constants.js';
+
+import {
+    swaggerSpec
+} from './docs/swagger.config.js';
+
+import {
+    config
+} from './config/env.js';
 
 const app = express();
 
@@ -47,19 +64,27 @@ app.use(
                 return callback(null, true);
             }
 
-            if (config.corsOrigins.includes(origin)) {
+            if (
+                config.corsOrigins.includes(origin)
+            ) {
                 return callback(null, true);
             }
 
             return callback(
-                new Error('Origen no permitido por CORS')
+                new Error(
+                    'Origen no permitido por CORS'
+                )
             );
         },
         credentials: true
     })
 );
 
-app.use(express.json({ limit: '1mb' }));
+app.use(
+    express.json({
+        limit: '1mb'
+    })
+);
 
 app.use(
     express.urlencoded({
@@ -69,11 +94,16 @@ app.use(
 );
 
 app.use(cookieParser());
+
 app.use(apiRateLimiter);
 
-app.use('/api/health', healthRouter);
+app.use(
+    '/api/health',
+    healthRouter
+);
 
-const isProd = config.nodeEnv === 'production';
+const isProd =
+    config.nodeEnv === 'production';
 
 const internalGuard = isProd
     ? basicAuth
@@ -92,7 +122,10 @@ app.use(
     authRouter
 );
 
-app.use('/api/users', usersRouter);
+app.use(
+    '/api/users',
+    usersRouter
+);
 
 app.use(
     '/api/loggerTest',
@@ -100,15 +133,40 @@ app.use(
     loggerTestRouter
 );
 
-app.use('/api/orders', ordersRouter);
-app.use('/api/deliveries', deliveriesRouter);
+app.use(
+    '/api/orders',
+    ordersRouter
+);
 
-// Bloque 10: administración y disponibilidad de repartidores.
-app.use('/api/drivers', driversRouter);
+app.use(
+    '/api/deliveries',
+    deliveriesRouter
+);
 
-app.use('/api/depots', depotsRouter);
-app.use('/api/analytics', analyticsRouter);
-app.use('/api/products', productsRouter);
+app.use(
+    '/api/drivers',
+    driversRouter
+);
+
+app.use(
+    '/api/depots',
+    depotsRouter
+);
+
+app.use(
+    '/api/analytics',
+    analyticsRouter
+);
+
+app.use(
+    '/api/notifications',
+    notificationsRouter
+);
+
+app.use(
+    '/api/products',
+    productsRouter
+);
 
 app.use(
     '/api/mocks',

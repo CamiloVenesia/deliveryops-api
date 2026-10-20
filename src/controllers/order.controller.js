@@ -1,5 +1,12 @@
 
-import { orderService } from '../services/order.service.js';
+import {
+    orderService
+} from '../services/order.service.js';
+
+import {
+    notificationService,
+    safelyQueue
+} from '../services/notification.service.js';
 
 import {
     orderCreationService
@@ -19,14 +26,22 @@ const SEARCH_PARAMS = new Set([
 ]);
 
 function hasSearchParams(query) {
-    return Object.keys(query).some(key => SEARCH_PARAMS.has(key));
+    return Object.keys(query).some(
+        key => SEARCH_PARAMS.has(key)
+    );
 }
 
 export const orderController = {
     async getAll(req, res) {
         const result = hasSearchParams(req.query)
-            ? await operationsSearchService.orders(req.query, req.user)
-            : await orderService.getAll(req.query, req.user);
+            ? await operationsSearchService.orders(
+                req.query,
+                req.user
+            )
+            : await orderService.getAll(
+                req.query,
+                req.user
+            );
 
         res.json(result);
     },
@@ -41,28 +56,48 @@ export const orderController = {
     },
 
     async create(req, res) {
-        const { order, shippingCost } =
-            await orderCreationService.create(req.body, req.user);
+        const {
+            order,
+            shippingCost
+        } = await orderCreationService.create(
+            req.body,
+            req.user
+        );
+
+        await safelyQueue(
+            () => notificationService.orderCreated(
+                order
+            )
+        );
 
         res.status(201).json({
             order,
             shippingCost,
-            message: 'Pedido creado y email enviado'
+            message: 'Pedido creado correctamente'
         });
     },
 
     async updateStatus(req, res) {
-        const order = await orderService.updateStatus(
-            req.params.oid,
-            req.body.status,
-            req.user
+        const order =
+            await orderService.updateStatus(
+                req.params.oid,
+                req.body.status,
+                req.user
+            );
+
+        await safelyQueue(
+            () => notificationService.orderStatusChanged(
+                order
+            )
         );
 
         res.json(order);
     },
 
     async remove(req, res) {
-        await orderService.remove(req.params.oid);
+        await orderService.remove(
+            req.params.oid
+        );
 
         res.json({
             message: 'Pedido eliminado'
