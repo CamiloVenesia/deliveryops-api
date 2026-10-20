@@ -6,6 +6,10 @@ import {
 } from '../controllers/drivers.controller.js';
 
 import {
+    dispatchController
+} from '../controllers/dispatch.controller.js';
+
+import {
     authenticate
 } from '../middleware/authenticate.js';
 
@@ -36,6 +40,12 @@ router.get(
     '/',
     authorizeRoles('admin'),
     asyncHandler(driversController.list)
+);
+
+router.get(
+    '/recommendations',
+    authorizeRoles('admin'),
+    asyncHandler(dispatchController.recommendations)
 );
 
 router.get(

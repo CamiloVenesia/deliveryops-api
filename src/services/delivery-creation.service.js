@@ -8,6 +8,9 @@ import Depot from '../models/depot.model.js';
 
 import { deliveryService } from './delivery.service.js';
 import { driversService } from './drivers.service.js';
+import {
+    assignmentLeaseService
+} from './assignment-lease.service.js';
 
 import { customError } from '../utils/customError.js';
 import { ERROR_CODES } from '../constants/error.constants.js';
@@ -101,7 +104,7 @@ export const deliveryCreationService = {
             ...details
         });
 
-        // Validamos la información antes de modificar el pedido.
+        // Validamos los datos antes de modificar el pedido.
         try {
             await candidate.validate();
         } catch (error) {
@@ -112,52 +115,65 @@ export const deliveryCreationService = {
             throw error;
         }
 
-        // Bloque 10: nunca asignar una nueva entrega
-        // a un usuario inactivo, ocupado o fuera de servicio.
-        await driversService.assertAssignable(data.driver);
-
-        // Conservamos la lógica existente de sincronización
-        // entre pedidos y entregas.
-        const delivery = await deliveryService.create(
+        // Se bloquean temporalmente el pedido y el repartidor.
+        // Esto serializa asignaciones concurrentes que usan esta API.
+        return assignmentLeaseService.run(
             {
-                order: data.order,
-                driver: data.driver,
-                priority: data.priority
+                orderId: data.order,
+                driverId: data.driver
             },
-            actor
+            async () => {
+                // La capacidad se comprueba DENTRO de la sección crítica.
+                await driversService.assertAssignable(data.driver);
+
+                // Conservamos la sincronización entre pedido y entrega.
+                const delivery = await deliveryService.create(
+                    {
+                        order: data.order,
+                        driver: data.driver,
+                        priority: data.priority
+                    },
+                    actor
+                );
+
+                try {
+                    for (const [key, value] of Object.entries(details)) {
+                        delivery.set(key, value);
+                    }
+
+                    await delivery.save();
+
+                    return delivery;
+                } catch (error) {
+                    try {
+                        await deliveryService.remove(
+                            delivery.id,
+                            actor
+                        );
+                    } catch (rollbackError) {
+                        logger.error(
+                            `ALERTA: reversión fallida para entrega ${delivery.id}: ${rollbackError.message}`
+                        );
+
+                        throw new Error(
+                            `La asignación ${delivery.id} necesita revisión manual porque falló la reversión`,
+                            { cause: error }
+                        );
+                    }
+
+                    if (error?.code === 11000) {
+                        invalid(
+                            'El código de seguimiento ya está utilizado'
+                        );
+                    }
+
+                    if (error instanceof mongoose.Error.ValidationError) {
+                        invalid(error.message);
+                    }
+
+                    throw error;
+                }
+            }
         );
-
-        try {
-            for (const [key, value] of Object.entries(details)) {
-                delivery.set(key, value);
-            }
-
-            await delivery.save();
-
-            return delivery;
-        } catch (error) {
-            try {
-                await deliveryService.remove(delivery.id, actor);
-            } catch (rollbackError) {
-                logger.error(
-                    `ALERTA: reversión fallida para entrega ${delivery.id}: ${rollbackError.message}`
-                );
-
-                throw new Error(
-                    `La asignación ${delivery.id} necesita revisión manual porque falló la reversión`,
-                    { cause: error }
-                );
-            }
-
-            if (error?.code === 11000) {
-                invalid('El código de seguimiento ya está utilizado');
-            }
-
-            if (error instanceof mongoose.Error.ValidationError) {
-                invalid(error.message);
-            }
-
-            throw error;
-        }
     }
 };
