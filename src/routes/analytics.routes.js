@@ -1,10 +1,21 @@
 
 import { Router } from 'express';
 
-import { authenticate } from '../middleware/authenticate.js';
-import { authorizeRoles } from '../middleware/authorizeRoles.js';
-import { asyncHandler } from '../utils/asyncHandler.js';
-import { analyticsController } from '../controllers/analytics.controller.js';
+import {
+  authenticate
+} from '../middleware/authenticate.js';
+
+import {
+  authorizeRoles
+} from '../middleware/authorizeRoles.js';
+
+import {
+  asyncHandler
+} from '../utils/asyncHandler.js';
+
+import {
+  analyticsController
+} from '../controllers/analytics.controller.js';
 
 const router = Router();
 
@@ -14,6 +25,11 @@ router.use(authorizeRoles('admin'));
 router.get(
   '/dashboard',
   asyncHandler(analyticsController.getDashboard)
+);
+
+router.get(
+  '/operations',
+  asyncHandler(analyticsController.getOperations)
 );
 
 export default router;
