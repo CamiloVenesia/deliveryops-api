@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
+    "dev": "node --watch src/server.js",
     "test": "cross-env NODE_ENV=test mocha --exit tests/setup.js tests/**/*.test.js",
     "create:admin": "node scripts/create-admin.js"
   },
@@ -48,8 +48,7 @@
   "devDependencies": {
     "chai": "^6.2.2",
     "cross-env": "^10.1.0",
-    "mocha": "^11.8.0",
-    "nodemon": "^3.1.9",
+    "mocha": "^12.0.3",
     "supertest": "^7.2.2"
   }
 }
