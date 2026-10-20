@@ -1,12 +1,21 @@
-// src/services/auth.service.js
 
 import bcrypt from 'bcrypt';
 
-import { userRepository } from '../repositories/user.repository.js';
-import { authRepository } from '../repositories/auth.repository.js';
+import {
+    userRepository
+} from '../repositories/user.repository.js';
 
-import { customError } from '../utils/customError.js';
-import { ERROR_CODES } from '../constants/error.constants.js';
+import {
+    authRepository
+} from '../repositories/auth.repository.js';
+
+import {
+    customError
+} from '../utils/customError.js';
+
+import {
+    ERROR_CODES
+} from '../constants/error.constants.js';
 
 import {
     generateAccessToken,
@@ -16,7 +25,6 @@ import {
 } from '../utils/token.js';
 
 export const authService = {
-
     async login({
         email,
         password,
@@ -41,13 +49,17 @@ export const authService = {
             );
         }
 
-        const passwordMatches =
-            await bcrypt.compare(
-                password,
-                user.password
-            );
+        const passwordMatches = await bcrypt.compare(
+            password,
+            user.password
+        );
 
-        if (!passwordMatches) {
+        // Una cuenta desactivada no puede
+        // obtener nuevos tokens de acceso.
+        if (
+            !passwordMatches ||
+            user.active === false
+        ) {
             throw new customError(
                 ERROR_CODES.INVALID_CREDENTIALS
             );
@@ -64,8 +76,7 @@ export const authService = {
 
         await authRepository.createSession({
             userId: user._id,
-            tokenHash:
-                hashToken(refreshToken),
+            tokenHash: hashToken(refreshToken),
             jti,
             expiresAt,
             userAgent,
@@ -94,18 +105,14 @@ export const authService = {
         let payload;
 
         try {
-            payload =
-                verifyRefreshToken(
-                    refreshToken
-                );
+            payload = verifyRefreshToken(refreshToken);
         } catch {
             throw new customError(
                 ERROR_CODES.INVALID_REFRESH_TOKEN
             );
         }
 
-        const tokenHash =
-            hashToken(refreshToken);
+        const tokenHash = hashToken(refreshToken);
 
         const session =
             await authRepository.findByTokenHash(
@@ -119,35 +126,28 @@ export const authService = {
         }
 
         if (session.revokedAt) {
-            await authRepository
-                .revokeAllUserSessions(
-                    session.user
-                );
+            await authRepository.revokeAllUserSessions(
+                session.user
+            );
 
             throw new customError(
                 ERROR_CODES.REFRESH_TOKEN_REUSED
             );
         }
 
-        if (
-            session.expiresAt <=
-            new Date()
-        ) {
+        if (session.expiresAt <= new Date()) {
             throw new customError(
                 ERROR_CODES.INVALID_REFRESH_TOKEN
             );
         }
 
         if (
-            payload.jti !==
-                session.jti ||
-            payload.sub !==
-                session.user.toString()
+            payload.jti !== session.jti ||
+            payload.sub !== session.user.toString()
         ) {
-            await authRepository
-                .revokeAllUserSessions(
-                    session.user
-                );
+            await authRepository.revokeAllUserSessions(
+                session.user
+            );
 
             throw new customError(
                 ERROR_CODES.INVALID_REFRESH_TOKEN
@@ -159,11 +159,15 @@ export const authService = {
                 payload.sub
             );
 
-        if (!user) {
-            await authRepository
-                .revokeAllUserSessions(
-                    session.user
-                );
+        // Si se eliminó o desactivó la cuenta,
+        // se revocan también sus refresh tokens.
+        if (
+            !user ||
+            user.active === false
+        ) {
+            await authRepository.revokeAllUserSessions(
+                session.user
+            );
 
             throw new customError(
                 ERROR_CODES.INVALID_REFRESH_TOKEN
@@ -182,10 +186,9 @@ export const authService = {
         const newSession =
             await authRepository.createSession({
                 userId: user._id,
-                tokenHash:
-                    hashToken(
-                        newRefreshToken
-                    ),
+                tokenHash: hashToken(
+                    newRefreshToken
+                ),
                 jti,
                 expiresAt,
                 userAgent,
@@ -199,10 +202,8 @@ export const authService = {
 
         return {
             accessToken,
-            refreshToken:
-                newRefreshToken,
-            refreshExpiresAt:
-                expiresAt
+            refreshToken: newRefreshToken,
+            refreshExpiresAt: expiresAt
         };
     },
 
@@ -211,8 +212,7 @@ export const authService = {
             return;
         }
 
-        const tokenHash =
-            hashToken(refreshToken);
+        const tokenHash = hashToken(refreshToken);
 
         const session =
             await authRepository.findByTokenHash(
@@ -223,18 +223,16 @@ export const authService = {
             session &&
             !session.revokedAt
         ) {
-            await authRepository
-                .revokeSession(
-                    session._id
-                );
+            await authRepository.revokeSession(
+                session._id
+            );
         }
     },
 
     async logoutAll(userId) {
-        await authRepository
-            .revokeAllUserSessions(
-                userId
-            );
+        await authRepository.revokeAllUserSessions(
+            userId
+        );
     },
 
     async getCurrentUser(userId) {

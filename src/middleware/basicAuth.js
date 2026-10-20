@@ -1,30 +1,61 @@
-// src/middleware/basicAuth.js
+
+import crypto from 'node:crypto';
 
 import { config } from '../config/env.js';
 
-export function basicAuth(req, res, next) {
-    const authHeader = req.headers.authorization;
+function deny(res) {
+    res.set(
+        'WWW-Authenticate',
+        'Basic realm="Swagger Docs"'
+    );
 
-    if (!authHeader || !authHeader.startsWith('Basic ')) {
-        res.set('WWW-Authenticate', 'Basic realm="Swagger Docs"');
-        return res.status(401).json({
-            status: 'error',
-            error: 'UNAUTHORIZED',
-            message: 'Credenciales requeridas para acceder a la documentación'
-        });
-    }
-
-    const credentials = Buffer.from(authHeader.slice(6), 'base64').toString();
-    const [user, password] = credentials.split(':');
-
-    if (user === config.basicAuthUser && password === config.basicAuthPassword) {
-        return next();
-    }
-
-    res.set('WWW-Authenticate', 'Basic realm="Swagger Docs"');
     return res.status(401).json({
         status: 'error',
         error: 'UNAUTHORIZED',
-        message: 'Credenciales inválidas'
+        message: 'Credenciales inválidas o ausentes'
     });
+}
+
+export function basicAuth(req, res, next) {
+    const authorization = req.get('authorization') || '';
+
+    // Rechaza formatos incorrectos y cabeceras
+    // excesivamente largas.
+    if (
+        authorization.length > 2048 ||
+        !/^Basic [A-Za-z0-9+/]+={0,2}$/.test(authorization)
+    ) {
+        return deny(res);
+    }
+
+    const received = Buffer.from(
+        authorization.slice(6),
+        'base64'
+    ).toString('utf8');
+
+    const expected = [
+        config.basicAuthUser,
+        config.basicAuthPassword
+    ].join(':');
+
+    // Comparación de hashes de longitud fija
+    // para reducir filtraciones por tiempo.
+    const receivedHash = crypto
+        .createHash('sha256')
+        .update(received)
+        .digest();
+
+    const expectedHash = crypto
+        .createHash('sha256')
+        .update(expected)
+        .digest();
+
+    if (!crypto.timingSafeEqual(
+        receivedHash,
+        expectedHash
+    )) {
+        return deny(res);
+    }
+
+    return next();
 }
