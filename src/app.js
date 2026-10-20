@@ -17,6 +17,7 @@ import productsRouter from './routes/products.routes.js';
 import mocksRouter from './routes/mocks.routes.js';
 import healthRouter from './routes/health.routes.js';
 import notificationsRouter from './routes/notifications.routes.js';
+import routePlanningRouter from './routes/route-planning.routes.js';
 
 import {
     errorHandler
@@ -94,7 +95,6 @@ app.use(
 );
 
 app.use(cookieParser());
-
 app.use(apiRateLimiter);
 
 app.use(
@@ -161,6 +161,11 @@ app.use(
 app.use(
     '/api/notifications',
     notificationsRouter
+);
+
+app.use(
+    '/api/route-planning',
+    routePlanningRouter
 );
 
 app.use(
